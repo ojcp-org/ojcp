@@ -1,0 +1,14 @@
+{
+  "ojcp_verifier_version": "0.1",
+  "verifier_id": "id.me",
+  "verifier_name": "ID.me",
+  "description": "Identity verification for workforce and government applications.",
+  "verification_types": ["identity", "government_id", "biometric"],
+  "verification_endpoint": "https://verify.id.me/ojcp/start",
+  "proof_delivery_methods": ["callback", "redirect", "polling"],
+  "proof_format": "jws",
+  "signing_algorithms": ["ES256"],
+  "proof_ttl_seconds": 86400,
+  "public_keys_url": "https://id.me/.well-known/ojcp-verifier-keys.json",
+  "supported_countries": ["US"]
+}

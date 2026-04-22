@@ -1,0 +1,48 @@
+{
+  "ojcp_version": "0.1",
+  "provider": {
+    "name": "Acme Corp Careers",
+    "employer_id": "acme-corp",
+    "logo_url": "https://careers.acme.com/logo.png",
+    "description": "Acme Corp is a global leader in industrial innovation, hiring across engineering, operations, and commercial roles.",
+    "culture_context": "We operate with a bias for action and invest heavily in internal mobility.",
+    "industries": ["manufacturing", "engineering", "logistics"],
+    "hq_location": {
+      "city": "Chicago",
+      "state": "IL",
+      "country": "US"
+    }
+  },
+  "feed_endpoints": {
+    "search": "https://careers.acme.com/ojcp/v1/search",
+    "detail": "https://careers.acme.com/ojcp/v1/jobs/{job_id}",
+    "apply_init": "https://careers.acme.com/ojcp/v1/apply/init"
+  },
+  "mcp_endpoint": "https://careers.acme.com/ojcp/mcp",
+  "tools": [
+    "search_jobs",
+    "get_job_detail",
+    "get_employer_context",
+    "begin_application",
+    "submit_application",
+    "check_application_status"
+  ],
+  "apply_paths": ["ats_direct", "provider_hosted"],
+  "auth": {
+    "required": false,
+    "optional_scopes": ["candidate_context", "application_tracking"]
+  },
+  "rate_limits": {
+    "anonymous_rps": 10,
+    "authenticated_rps": 100
+  },
+  "supported_verifiers": [
+    {
+      "verifier_id": "id.me",
+      "verifier_name": "ID.me",
+      "verifier_manifest_url": "https://id.me/.well-known/ojcp-verifier.json",
+      "verification_types": ["identity", "government_id"],
+      "required_for_paths": ["ats_direct"]
+    }
+  ]
+}

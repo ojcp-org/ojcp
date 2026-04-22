@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ojcp.dev/schemas/v0.1/eeo-data.json",
+  "title": "OJCP EEO Data",
+  "description": "Voluntary Equal Employment Opportunity (EEO) self-identification data. All fields are optional and 'decline_to_answer' MUST be a valid value for every field. EEO data collection is regulated (US: OFCCP/EEOC; EU: GDPR Article 9 special category data). Providers MUST NOT require EEO data for application acceptance and MUST NOT use EEO data in fit scoring or screening decisions. Agents SHOULD only transmit EEO data when the candidate has explicitly chosen to disclose it.",
+  "type": "object",
+  "properties": {
+    "gender": {
+      "type": "string",
+      "enum": ["male", "female", "non_binary", "self_describe", "decline_to_answer"],
+      "description": "Voluntary gender self-identification. Standard values; providers MAY accept additional jurisdiction-specific values."
+    },
+    "gender_self_described": {
+      "type": "string",
+      "description": "Free-text gender description when 'gender' is 'self_describe'. Providers MUST treat this field with the same protections as enumerated EEO fields."
+    },
+    "race_ethnicity": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "american_indian_or_alaska_native",
+          "asian",
+          "black_or_african_american",
+          "hispanic_or_latino",
+          "native_hawaiian_or_other_pacific_islander",
+          "white",
+          "two_or_more_races",
+          "decline_to_answer"
+        ]
+      },
+      "description": "Voluntary race/ethnicity self-identification. Multi-select per US EEOC standard categories. Providers in other jurisdictions MAY define alternate enumerations."
+    },
+    "veteran_status": {
+      "type": "string",
+      "enum": [
+        "protected_veteran",
+        "not_protected_veteran",
+        "decline_to_answer"
+      ],
+      "description": "Voluntary veteran status self-identification per US OFCCP categories. Providers in other jurisdictions MAY define alternate enumerations."
+    },
+    "disability_status": {
+      "type": "string",
+      "enum": ["yes", "no", "decline_to_answer"],
+      "description": "Voluntary disability self-identification. 'yes' indicates the candidate identifies as having a disability per the relevant jurisdiction's definition."
+    },
+    "jurisdiction": {
+      "type": "string",
+      "description": "ISO 3166-1 alpha-2 country code identifying the regulatory framework these answers were collected under (e.g., 'US', 'CA', 'GB'). Determines which enumerations apply.",
+      "default": "US"
+    }
+  },
+  "additionalProperties": false
+}

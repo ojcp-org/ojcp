@@ -1,0 +1,14 @@
+{
+  "ojcp_version": "0.1",
+  "application_id": "app_abc123",
+  "status": "submitted",
+  "message": "Application submitted successfully. Identity verification validated.",
+  "next_steps": "Your application is now under review. You will hear back within 5 business days.",
+  "warnings": [
+    {
+      "code": "fields_ignored",
+      "message": "The following fields exceed 'fit_scoring' scope and were ignored.",
+      "fields": ["resume_url"]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "ojcp_version": "0.1",
+  "application_id": "app_abc123",
+  "status": "pending_verification",
+  "apply_path": {
+    "type": "provider_hosted",
+    "url": "https://careers.acme.com/apply/analyst-2026-001",
+    "required_fields": ["resume", "email", "name", "security_clearance_level"],
+    "supports_agent_submission": true,
+    "requires_verification": true,
+    "accepted_verifiers": ["id.me"]
+  },
+  "verification_steps": [
+    {
+      "step_id": "vs_1",
+      "type": "identity",
+      "verifier_id": "id.me",
+      "verifier_name": "ID.me",
+      "verification_url": "https://verify.id.me/ojcp?session=xyz789",
+      "required": true,
+      "human_required": true,
+      "estimated_completion_minutes": 5,
+      "proof_delivery": "agent_submitted",
+      "instructions": "Candidate must complete ID.me identity verification. Open the verification URL in a browser."
+    }
+  ],
+  "session_token": "sess_def456",
+  "expires_at": "2026-03-20T12:00:00Z"
+}

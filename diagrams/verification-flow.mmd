@@ -1,0 +1,30 @@
+sequenceDiagram
+    participant C as Candidate
+    participant A as AI Agent
+    participant P as OJCP Provider
+    participant V as Identity Verifier<br/>(ID.me / Clear)
+
+    Note over P,V: Session Initiation
+    A->>P: begin_application(job_id, agent_declaration)
+    P->>V: POST verification_endpoint<br/>(provider_id, nonce, redirect_url)
+    V-->>P: session_id + verification_url
+    P-->>A: status: pending_verification<br/>+ verification_steps[proof_delivery: agent_submitted]
+
+    rect rgb(255, 230, 230)
+        Note over C,V: Human Verification (agent cannot do this)
+        A-->>C: Open verification URL
+        C->>V: Face scan / ID upload
+        V-->>C: Verified ✓
+    end
+
+    V-->>C: Redirect with proof_token
+    C-->>A: proof_token
+
+    A->>P: submit_application(app_id, session_token,<br/>application_data, verification_proofs[])
+
+    Note over P,V: Provider validates proof signature<br/>against verifier's JWKS
+
+    P-->>A: status: submitted
+    A-->>C: Application submitted ✓
+
+    Note over A,P: No PII flows through OJCP.<br/>Only cryptographic proofs.

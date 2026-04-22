@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ojcp.dev/schemas/v0.1/responses/submit-application.json",
+  "title": "OJCP submit_application Response",
+  "description": "Response schema for the submit_application tool.",
+  "type": "object",
+  "required": ["ojcp_version", "application_id", "status"],
+  "properties": {
+    "ojcp_version": {
+      "type": "string",
+      "description": "The OJCP specification version."
+    },
+    "application_id": {
+      "type": "string",
+      "description": "The application session identifier."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["submitted", "verification_failed", "validation_failed", "expired", "rejected"],
+      "description": "Result of the submission attempt."
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable message about the submission result."
+    },
+    "next_steps": {
+      "type": "string",
+      "description": "What happens next after submission."
+    },
+    "verification_errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "step_id": {
+            "type": "string",
+            "description": "The verification step that failed."
+          },
+          "error": {
+            "type": "string",
+            "enum": ["invalid_structure", "key_resolution_failed", "invalid_signature", "issuer_mismatch", "audience_mismatch", "expired_proof", "nonce_mismatch", "type_mismatch", "unrecognized_verifier", "missing_proof"],
+            "description": "Error code for the verification failure."
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message."
+          }
+        }
+      },
+      "description": "Details about verification proof validation failures, if any."
+    },
+    "screening_errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["question_id", "error", "message"],
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "description": "The screening question that failed validation."
+          },
+          "error": {
+            "type": "string",
+            "enum": ["required_missing", "invalid_format", "out_of_range", "invalid_option", "too_short", "too_long"],
+            "description": "Validation error code."
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message."
+          }
+        }
+      },
+      "description": "Details about screening question validation failures. Present when status is 'validation_failed'."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": ["fields_ignored", "scope_exceeded", "deprecated_field", "answer_coerced", "stale_data"],
+            "description": "Warning code."
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable warning message."
+          },
+          "fields": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Field names that triggered the warning."
+          }
+        }
+      },
+      "description": "Non-fatal warnings about the request."
+    }
+  }
+}

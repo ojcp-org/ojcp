@@ -1,0 +1,21 @@
+flowchart LR
+    AGENT["AI Agent"]
+
+    subgraph DISCOVERY[" "]
+        MANIFEST["/.well-known/ojcp.json"]
+        REGISTRY["OJCP Registry"]
+    end
+
+    subgraph PROVIDER["Job Context Provider"]
+        direction TB
+        MCP_SERVER["MCP Server"]
+        TOOLS["search_jobs<br/>get_job_detail<br/>get_employer_context<br/>begin_application<br/>submit_application<br/>check_application_status"]
+        MCP_SERVER --- TOOLS
+    end
+
+    BROWSER["Browser Agent"]
+
+    AGENT -- discover --> MANIFEST
+    AGENT -- discover --> REGISTRY
+    AGENT -- MCP --> MCP_SERVER
+    BROWSER -- WebMCP --> TOOLS

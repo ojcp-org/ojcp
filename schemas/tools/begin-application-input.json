@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ojcp.dev/schemas/v0.1/tools/begin-application-input.json",
+  "title": "begin_application Input",
+  "description": "Input schema for the begin_application tool.",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "description": "The unique OJCP job identifier"
+    },
+    "apply_path": {
+      "type": "string",
+      "enum": ["ats_direct", "provider_hosted", "platform_native", "email", "external_redirect", "custom"],
+      "description": "Preferred application mechanism. If omitted, the provider selects the optimal path."
+    },
+    "candidate_context": { "$ref": "https://ojcp.dev/schemas/v0.1/candidate-context.json" },
+    "agent_declaration": { "$ref": "https://ojcp.dev/schemas/v0.1/agent-declaration.json" },
+    "source_attribution": {
+      "type": "object",
+      "properties": {
+        "referrer": { "type": "string", "description": "The source that referred the candidate (e.g., domain name, platform identifier)." },
+        "reference_id": { "type": "string", "description": "Opaque token the source can use for reconciliation (e.g., click ID, session ID)." }
+      }
+    }
+  },
+  "required": ["job_id"]
+}

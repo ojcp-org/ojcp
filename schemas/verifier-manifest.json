@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ojcp.dev/schemas/v0.1/verifier-manifest.json",
+  "title": "OJCP Verifier Manifest",
+  "description": "Schema for the /.well-known/ojcp-verifier.json file hosted by identity verification providers.",
+  "type": "object",
+  "required": ["ojcp_verifier_version", "verifier_id", "verifier_name", "verification_types", "proof_format", "public_keys_url"],
+  "properties": {
+    "ojcp_verifier_version": {
+      "type": "string",
+      "description": "OJCP verifier manifest version.",
+      "enum": ["0.1"]
+    },
+    "verifier_id": {
+      "type": "string",
+      "description": "Unique identifier for this verifier (e.g., 'id.me', 'clear')."
+    },
+    "verifier_name": {
+      "type": "string",
+      "description": "Human-readable name of the verifier."
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the verifier's services."
+    },
+    "verification_types": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["identity", "government_id", "biometric", "address", "employment", "education", "background_check"]
+      },
+      "description": "Types of verification this provider supports."
+    },
+    "verification_endpoint": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL for initiating verification sessions. Providers POST a session request to this endpoint to create a scoped verification_url for the candidate."
+    },
+    "proof_delivery_methods": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["callback", "redirect", "polling"]
+      },
+      "description": "Methods this verifier supports for delivering proofs. 'callback': verifier POSTs proof to the provider's callback_url (server-to-server). 'redirect': verifier redirects candidate's browser to redirect_url with proof_token as a query parameter. 'polling': agent or provider polls the verifier's session status endpoint to retrieve the proof."
+    },
+    "proof_format": {
+      "type": "string",
+      "enum": ["jws", "jws+jwe"],
+      "description": "Format of the verification proof artifact. 'jws' for signed proofs per RFC 7515. 'jws+jwe' signals that the verifier supports signed-then-encrypted proofs per RFC 7516, but JWE handling rules are not defined in OJCP v0.1 — providers SHOULD reject jws+jwe proofs they cannot decrypt. Full JWE support will be defined in a future version."
+    },
+    "signing_algorithms": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["ES256", "ES384", "RS256", "RS384"]
+      },
+      "description": "JWS signing algorithms supported by this verifier. ES256 is RECOMMENDED."
+    },
+    "proof_ttl_seconds": {
+      "type": "integer",
+      "description": "Default time-to-live for issued proofs, in seconds."
+    },
+    "public_keys_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to a JWK Set containing the verifier's public keys for proof validation."
+    },
+    "supported_countries": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "ISO 3166-1 alpha-2 country codes where this verifier operates."
+    }
+  }
+}

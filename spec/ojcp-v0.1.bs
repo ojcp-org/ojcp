@@ -1,0 +1,1813 @@
+<pre class='metadata'>
+Title: Open Job Context Protocol
+Shortname: ojcp
+Level: 1
+Status: LD
+URL: https://spec.ojcp.dev/
+Editor: Austin Anderson, Recruitics https://www.recruitics.com/, austin@recruitics.com
+Abstract: AI agents are beginning to search for jobs, evaluate opportunities, and submit applications on behalf of candidates — but existing job feeds, careers pages, and ATS apply flows were never designed for machine consumption. The Open Job Context Protocol (OJCP) defines how job opportunities, employer context, and application affordances should be expressed so that AI agents can discover, reason over, and act on them. OJCP achieves this through MCP-compatible tools with structured input and output schemas, a standard job manifest for capability discovery, and integration with WebMCP for browser-native agent access.
+Markup Shorthands: markdown yes
+Date: 2026-03-18
+Version History: https://github.com/ojcp-org/ojcp/commits/main
+Repository: ojcp-org/ojcp
+Boilerplate: conformance no, copyright no
+</pre>
+
+<pre class='metadata'>
+Text Macro: VERSION 0.1
+</pre>
+
+<pre class='link-defaults'>
+</pre>
+
+<pre class="copyright">
+Copyright &copy; 2026 The OJCP Authors. Licensed under the <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>. See <a href="https://github.com/ojcp-org/ojcp/blob/main/GOVERNANCE.md">GOVERNANCE.md</a> for the project's governance model.
+</pre>
+
+# Introduction # {#intro}
+
+The Open Job Context Protocol (OJCP) defines a standard for expressing job opportunities, employer context, and application affordances in a form that AI agents can discover, reason over, and act upon.
+
+OJCP is not a competing protocol. It is a **vertical application** of MCP for the job data domain — the same way industry-specific schemas build on schema.org without replacing it. MCP defines how agents call tools; OJCP defines *which* tools exist for job search, application, and verification, what their inputs and outputs look like, and how trust and consent work in the hiring context. An agent that speaks MCP already speaks OJCP — it just needs to discover the provider's manifest and call the standard tools.
+
+OJCP is designed to interoperate with the Model Context Protocol (MCP), WebMCP, and structured data conventions including JSON-LD and schema.org. MCP is the primary integration path today. WebMCP is the natural progression as browser-native agent capabilities mature — career pages already have forms, and WebMCP lets providers annotate them as tools without deploying a separate MCP server.
+
+## Terminology ## {#terminology}
+
+: <dfn>Job Context Provider</dfn>
+:: A server, web application, or API endpoint that publishes job opportunities and associated context in OJCP format.
+
+: <dfn>Job Agent</dfn>
+:: An AI agent or LLM-powered application that consumes OJCP-formatted data to discover, evaluate, or act on job opportunities on behalf of a user or autonomous workflow.
+
+: <dfn>Job Manifest</dfn>
+:: A machine-readable JSON document describing a [=Job Context Provider=]'s available tools, endpoints, and capabilities.
+
+: <dfn>Job Tool</dfn>
+:: An MCP-compatible callable function exposed by a [=Job Context Provider=].
+
+: <dfn>Candidate Context</dfn>
+:: Structured data about a candidate passed by a [=Job Agent=] when calling [=Job Tools=].
+
+: <dfn>Apply Path</dfn>
+:: A declared, structured description of how a candidate can apply for a role.
+
+: <dfn>Agent Declaration</dfn>
+:: Structured self-identification that agents MUST provide when initiating applications.
+
+: <dfn>Identity Verifier</dfn>
+:: A third-party service (e.g., ID.me, Clear) that performs identity verification and issues cryptographic proofs. Verifiers are external to OJCP.
+
+: <dfn>Verification Step</dfn>
+:: A discrete verification action required before an application can proceed, typically requiring human interaction (face scan, document upload, etc.).
+
+: <dfn>Verification Proof</dfn>
+:: A signed, opaque cryptographic artifact issued by an [=Identity Verifier=] after successful verification. Contains no PII — only a subject hash, timestamps, and the verifier's signature.
+
+: <dfn>Verifier Manifest</dfn>
+:: A machine-readable JSON document hosted by an [=Identity Verifier=] at `/.well-known/ojcp-verifier.json`, declaring supported verification types, proof format, and public keys.
+
+: <dfn>EEO Data</dfn>
+:: Voluntary Equal Employment Opportunity self-identification data (gender, race/ethnicity, veteran status, disability status) collected per applicable regulations. Carried in `application_data.eeo` only when the candidate has explicitly chosen to disclose.
+
+: <dfn>Manifest Signature</dfn>
+:: An optional cryptographic signature embedded in a [=Job Manifest=] that allows agents to verify the manifest's authenticity and binding to the serving domain. See [[#provider-trust]].
+
+: <dfn>Trust Tier</dfn>
+:: A registry-assigned classification (`unverified`, `verified`, or `audited`) indicating the level of trust signals available for a provider. Drives agent obligations around PII transmission. See [[#trust-tiers]].
+
+# Job Manifest # {#manifest}
+
+## Discovery ## {#manifest-discovery}
+
+Every OJCP-compliant [=Job Context Provider=] MUST expose a [=Job Manifest=] at the well-known path:
+
+```
+/.well-known/ojcp.json
+```
+
+The manifest MUST be served with `Content-Type: application/json`.
+
+## Format ## {#manifest-format}
+
+The manifest MUST include:
+
+- `ojcp_version` — The OJCP specification version (currently `"0.1"`).
+- `provider` — An object with at minimum a `name` field identifying the provider.
+- `tools` — An array of OJCP tool names supported by this provider.
+
+The manifest SHOULD include:
+
+- `mcp_endpoint` — A URL for MCP-compatible tool invocation.
+- `feed_endpoints` — REST API endpoints for job data access.
+- `apply_paths` — Application mechanisms supported by this provider.
+- `auth` — Authentication requirements.
+- `rate_limits` — Rate limiting policy.
+- `supported_verifiers` — Accepted [=Identity Verifiers=] for [=apply paths=] that require verification (see [[#identity-verification]]).
+
+The manifest MAY include:
+
+- `resume_upload` — An endpoint accepting candidate resume uploads from agents that lack their own file hosting. See [[#resume-upload]].
+- `signature` — A cryptographic [=Manifest Signature=] enabling agents to verify the manifest's authenticity. Required to reach the `verified` registry [=trust tier=]. See [[#provider-trust]].
+
+<div class="example">
+```json
+{
+  "ojcp_version": "0.1",
+  "provider": {
+    "name": "Acme Corp Careers",
+    "employer_id": "acme-corp",
+    "logo_url": "https://careers.acme.com/logo.png",
+    "description": "Acme Corp is a global leader in industrial innovation.",
+    "culture_context": "We operate with a bias for action and invest heavily in internal mobility.",
+    "industries": ["manufacturing", "engineering", "logistics"],
+    "hq_location": { "city": "Chicago", "state": "IL", "country": "US" }
+  },
+  "feed_endpoints": {
+    "search": "https://careers.acme.com/ojcp/v1/search",
+    "detail": "https://careers.acme.com/ojcp/v1/jobs/{job_id}",
+    "apply_init": "https://careers.acme.com/ojcp/v1/apply/init"
+  },
+  "mcp_endpoint": "https://careers.acme.com/ojcp/mcp",
+  "tools": ["search_jobs", "get_job_detail", "get_employer_context", "begin_application", "submit_application", "check_application_status"],
+  "apply_paths": ["ats_direct", "provider_hosted"],
+  "auth": {
+    "required": false,
+    "optional_scopes": ["candidate_context", "application_tracking"]
+  },
+  "rate_limits": {
+    "anonymous_rps": 10,
+    "authenticated_rps": 100
+  },
+  "supported_verifiers": [
+    {
+      "verifier_id": "id.me",
+      "verifier_name": "ID.me",
+      "verifier_manifest_url": "https://id.me/.well-known/ojcp-verifier.json",
+      "verification_types": ["identity", "government_id"],
+      "required_for_paths": ["ats_direct"]
+    }
+  ]
+}
+```
+</div>
+
+# Job Tools # {#tools}
+
+OJCP defines a standard set of MCP-compatible tools. Providers MUST implement at least `search_jobs`. All other tools are RECOMMENDED.
+
+## `search_jobs` ## {#tool-search-jobs}
+
+Search for open job opportunities. Returns a ranked list of jobs matching the provided criteria.
+
+**Required input:** `query` (string)
+
+**Optional input:** `location`, `filters`, `candidate_context`, `pagination`
+
+When [=Candidate Context=] is provided, the provider SHOULD return personalized results including `fit_score` and `fit_rationale` for each result.
+
+<div class="example">
+```json
+{
+  "name": "search_jobs",
+  "description": "Search for open job opportunities. Returns a ranked list of jobs matching the provided criteria.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Natural language search query, e.g. 'senior backend engineer remote'"
+      },
+      "location": {
+        "type": "object",
+        "properties": {
+          "city": { "type": "string" },
+          "state": { "type": "string" },
+          "country": { "type": "string" },
+          "remote_ok": { "type": "boolean" },
+          "radius_miles": { "type": "number" }
+        }
+      },
+      "filters": {
+        "type": "object",
+        "properties": {
+          "employment_type": {
+            "type": "string",
+            "description": "Standard values: full_time, part_time, contract, internship, temporary. Providers MAY accept additional values."
+          },
+          "salary_min": { "type": "number" },
+          "salary_max": { "type": "number" },
+          "experience_level": {
+            "type": "string",
+            "description": "Standard values: entry, mid, senior, lead, director, executive. Providers MAY accept additional values."
+          },
+          "posted_within_days": { "type": "integer" }
+        }
+      },
+      "candidate_context": { "$ref": "https://ojcp.dev/schemas/v0.1/candidate-context.json" },
+      "pagination": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer", "default": 10, "maximum": 50 },
+          "offset": { "type": "integer", "default": 0 }
+        }
+      }
+    },
+    "required": ["query"]
+  }
+}
+```
+</div>
+
+**Response:** Returns `ojcp_version`, `query`, `total_results`, `returned`, `offset`, and a `jobs` array. Each job includes core fields (`ojcp_id`, `title`, `employer`, `datePosted`) plus summary data. When [=Candidate Context=] was provided, each job includes `fit_score` (0.0–1.0) and `fit_rationale`.
+
+## `get_job_detail` ## {#tool-get-job-detail}
+
+Retrieve full details for a specific job posting, including responsibilities, qualifications, compensation, team context, and available [=apply paths=].
+
+**Required input:** `job_id` (string)
+
+**Optional input:** `include_employer_context`, `candidate_context`
+
+<div class="example">
+```json
+{
+  "name": "get_job_detail",
+  "description": "Retrieve full details for a specific job posting.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "job_id": { "type": "string", "description": "The unique OJCP job identifier" },
+      "include_employer_context": { "type": "boolean", "default": true },
+      "candidate_context": { "$ref": "https://ojcp.dev/schemas/v0.1/candidate-context.json" }
+    },
+    "required": ["job_id"]
+  }
+}
+```
+</div>
+
+**Response:** Returns `ojcp_version` and a full `job` object conforming to the JobPosting schema. When `include_employer_context` is true, includes an `employer_context` object. When [=Candidate Context=] was provided, includes `fit_score` and `fit_rationale`.
+
+## `get_employer_context` ## {#tool-get-employer-context}
+
+Retrieve contextual information about an employer — culture, team structure, benefits, and hiring practices.
+
+**Required input:** `employer_id` (string)
+
+<div class="example">
+```json
+{
+  "name": "get_employer_context",
+  "description": "Retrieve contextual information about an employer including culture, team structure, benefits, and hiring practices.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "employer_id": { "type": "string", "description": "The OJCP employer identifier" }
+    },
+    "required": ["employer_id"]
+  }
+}
+```
+</div>
+
+**Response:** Returns `ojcp_version`, `employer_id`, `name`, and optional fields including `description`, `culture_context`, `industries`, `hq_location`, `benefits`, `hiring_process`, and `open_roles_count`.
+
+## `begin_application` ## {#tool-begin-application}
+
+Initiate an application for a job. Returns an [=apply path=] descriptor including required fields, the preferred apply mechanism, and a session token for multi-step apply flows.
+
+**Required input:** `job_id` (string)
+
+**Optional input:** `apply_path`, `candidate_context`, `agent_declaration`, `source_attribution`
+
+Providers SHOULD require [=Agent Declaration=] and MAY reject requests without a valid `user_consent_token`.
+
+<div class="example">
+```json
+{
+  "name": "begin_application",
+  "description": "Initiate an application for a job.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "job_id": { "type": "string" },
+      "apply_path": {
+        "type": "string",
+        "enum": ["ats_direct", "provider_hosted", "platform_native", "email", "external_redirect", "custom"],
+        "description": "Preferred application mechanism. If omitted, the provider selects the optimal path. Note: email and external_redirect do not support agent submission — begin_application will return the URL for the candidate to complete manually."
+      },
+      "candidate_context": { "$ref": "https://ojcp.dev/schemas/v0.1/candidate-context.json" },
+      "agent_declaration": { "$ref": "https://ojcp.dev/schemas/v0.1/agent-declaration.json" },
+      "source_attribution": {
+        "type": "object",
+        "description": "Attribution for the traffic source that led the candidate to this job. Enables job boards and aggregators to track referral value.",
+        "properties": {
+          "referrer": { "type": "string", "description": "The source that referred the candidate (e.g., domain name, platform identifier)." },
+          "reference_id": { "type": "string", "description": "Opaque token the source can use for reconciliation (e.g., click ID, session ID)." }
+        }
+      }
+    },
+    "required": ["job_id"]
+  }
+}
+```
+</div>
+
+**Response:** Returns `ojcp_version`, `application_id`, `status` (`initiated`, `pending_submission`, or `pending_verification`), and an `apply_path` descriptor with `type`, `required_fields`, `url`, and `supports_agent_submission`. When `status` is `pending_verification`, includes `verification_steps` — an array of [=Verification Steps=] the candidate must complete before the application can proceed — and `verification_deadline`, an ISO 8601 timestamp after which incomplete verifications cause the application to expire (see [[#identity-async-deadline]]). May include `session_token` for multi-step flows, `expires_at`, and `screening_questions` — an array of questions the candidate must answer, each with `question_id`, `question_text`, `answer_type`, and optional `options`. Questions MAY include validation constraints: `min_length`/`max_length` for text, `pattern` (regex) for format validation, and `min`/`max` for number and date answers. Agents include the answers in `submit_application`'s `application_data.answers` keyed by `question_id`.
+
+<div class="example">
+A `begin_application` response requiring identity verification:
+
+```json
+{
+  "ojcp_version": "0.1",
+  "application_id": "app_abc123",
+  "status": "pending_verification",
+  "apply_path": {
+    "type": "provider_hosted",
+    "url": "https://careers.defense-corp.com/apply/analyst-2026-001",
+    "required_fields": ["resume", "email", "name", "security_clearance_level"],
+    "supports_agent_submission": true,
+    "requires_verification": true,
+    "accepted_verifiers": ["id.me"]
+  },
+  "verification_steps": [
+    {
+      "step_id": "vs_1",
+      "type": "identity",
+      "verifier_id": "id.me",
+      "verifier_name": "ID.me",
+      "verification_url": "https://verify.id.me/ojcp?session=xyz789",
+      "required": true,
+      "human_required": true,
+      "proof_delivery": "agent_submitted",
+      "estimated_completion_minutes": 5,
+      "instructions": "Candidate must complete ID.me identity verification. Open the verification URL in a browser."
+    }
+  ],
+  "session_token": "sess_def456",
+  "expires_at": "2026-03-20T12:00:00Z"
+}
+```
+</div>
+
+## `submit_application` ## {#tool-submit-application}
+
+Submit a previously initiated application, including [=Verification Proofs=] when identity verification was required. This tool completes multi-step apply flows — particularly those requiring identity verification.
+
+**Required input:** `application_id` (string), `session_token` (string)
+
+**Conditionally required input:** `verification_proofs` — MUST be provided for each [=Verification Step=] where `proof_delivery` is `"agent_submitted"` (or omitted). Providers MUST return `verification_failed` with error `missing_proof` if proofs are omitted for agent-submitted steps. For steps where `proof_delivery` is `"provider_managed"`, the provider already holds the proof — agents MUST NOT include proofs for those steps.
+
+**Optional input:** `application_data`, `candidate_context`, `agent_declaration`, `source_attribution`
+
+The `application_data` object carries the actual application payload — screening question answers, cover letter, resume reference, EEO data, and any custom fields required by the ATS. Its shape is determined by the `required_fields`, `optional_fields`, and `screening_questions` returned in the `begin_application` response.
+
+The `resume_url` field requires a hosted URL. Agents with locally-stored resume files SHOULD use the provider's resume upload endpoint when declared (see [[#resume-upload]]) to obtain a valid URL. Agents that already have a hosted resume URL pass it directly.
+
+<div class="example">
+```json
+{
+  "name": "submit_application",
+  "description": "Submit a previously initiated application with verification proofs and/or candidate data.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "application_id": { "type": "string", "description": "Application ID from begin_application" },
+      "session_token": { "type": "string", "description": "Session token from begin_application" },
+      "application_data": {
+        "type": "object",
+        "description": "Application payload — screening question answers, cover letter, resume reference, and any custom fields. Shape is determined by the required_fields, optional_fields, and screening_questions from begin_application.",
+        "properties": {
+          "answers": {
+            "type": "object",
+            "description": "Screening question answers keyed by question_id.",
+            "additionalProperties": true
+          },
+          "cover_letter": { "type": "string", "description": "Cover letter text." },
+          "resume_url": { "type": "string", "format": "uri", "description": "URL to the candidate's resume document." },
+          "eeo": { "$ref": "https://ojcp.dev/schemas/v0.1/eeo-data.json" },
+          "custom_fields": {
+            "type": "object",
+            "description": "Additional ATS-specific fields. Keys match the field names from required_fields or optional_fields.",
+            "additionalProperties": true
+          }
+        }
+      },
+      "candidate_context": { "$ref": "https://ojcp.dev/schemas/v0.1/candidate-context.json" },
+      "verification_proofs": {
+        "type": "array",
+        "items": { "$ref": "https://ojcp.dev/schemas/v0.1/verification-proof.json" },
+        "description": "Cryptographic proofs from completed verification steps"
+      },
+      "agent_declaration": { "$ref": "https://ojcp.dev/schemas/v0.1/agent-declaration.json" },
+      "source_attribution": {
+        "type": "object",
+        "description": "Attribution for the traffic source. Same schema as begin_application.",
+        "properties": {
+          "referrer": { "type": "string" },
+          "reference_id": { "type": "string" }
+        }
+      }
+    },
+    "required": ["application_id", "session_token"]
+  }
+}
+```
+</div>
+
+**Response:** Returns `ojcp_version`, `application_id`, `status` (one of `submitted`, `verification_failed`, `validation_failed`, `expired`, `rejected`), and optional `message` and `next_steps`. When verification proofs fail validation, includes `verification_errors` with details per step. When screening question answers fail validation, returns `status: "validation_failed"` with a `screening_errors` array — each entry has `question_id`, `error` (one of `required_missing`, `invalid_format`, `out_of_range`, `invalid_option`, `too_short`, `too_long`), and `message`. Agents SHOULD fix the answers and resubmit. Responses MAY include a `warnings` array for non-fatal issues (e.g., `fields_ignored`, `scope_exceeded`).
+
+## `check_application_status` ## {#tool-check-application-status}
+
+Check the status of a previously initiated application. Agents SHOULD poll this tool during provider-managed verification flows to detect when verification completes and the application is ready for submission.
+
+**Required input:** `application_id` (string)
+
+<div class="example">
+```json
+{
+  "name": "check_application_status",
+  "description": "Check the status of a previously initiated application.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "application_id": { "type": "string", "description": "The application session ID returned by begin_application" }
+    },
+    "required": ["application_id"]
+  }
+}
+```
+</div>
+
+**Response:** Returns `ojcp_version`, `application_id`, `status`, `updated_at`, and optional `next_steps` and `estimated_response_days`. When `status` is `pending_verification`, includes `verification_status` with `steps_total`, `steps_completed`, `pending_steps`, and `completed_steps`.
+
+The `status` field spans the full application lifecycle. The pre-submission states (`initiated`, `pending_submission`, `pending_verification`) are returned by `begin_application`. The submission states (`submitted`, `verification_failed`, `validation_failed`, `expired`, `rejected`) are returned by `submit_application`. The post-submission states (`received`, `reviewing`, `interview_scheduled`, `offer_extended`, `withdrawn`) are exclusive to `check_application_status` and represent the employer-side hiring pipeline. `rejected` may appear at submission time (immediate rejection) or post-submission (employer decision).
+
+<table class="data">
+  <thead>
+    <tr><th>Status</th><th>Phase</th><th>Returned by</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`initiated`</td><td>Pre-submission</td><td>`begin_application`, `check_application_status`</td></tr>
+    <tr><td>`pending_submission`</td><td>Pre-submission</td><td>`begin_application`, `check_application_status`</td></tr>
+    <tr><td>`pending_verification`</td><td>Pre-submission</td><td>`begin_application`, `check_application_status`</td></tr>
+    <tr><td>`submitted`</td><td>Submission</td><td>`submit_application`, `check_application_status`</td></tr>
+    <tr><td>`verification_failed`</td><td>Submission</td><td>`submit_application`, `check_application_status`</td></tr>
+    <tr><td>`validation_failed`</td><td>Submission</td><td>`submit_application`</td></tr>
+    <tr><td>`expired`</td><td>Submission</td><td>`submit_application`</td></tr>
+    <tr><td>`rejected`</td><td>Submission / Post-submission</td><td>`submit_application`, `check_application_status`</td></tr>
+    <tr><td>`received`</td><td>Post-submission</td><td>`check_application_status`</td></tr>
+    <tr><td>`reviewing`</td><td>Post-submission</td><td>`check_application_status`</td></tr>
+    <tr><td>`interview_scheduled`</td><td>Post-submission</td><td>`check_application_status`</td></tr>
+    <tr><td>`offer_extended`</td><td>Post-submission</td><td>`check_application_status`</td></tr>
+    <tr><td>`withdrawn`</td><td>Post-submission</td><td>`check_application_status`</td></tr>
+  </tbody>
+</table>
+
+## Error Responses ## {#tool-errors}
+
+When any OJCP tool call fails, the provider MUST return a standard error envelope:
+
+<div class="example">
+```json
+{
+  "ojcp_version": "0.1",
+  "error_code": "job_not_found",
+  "message": "No job found with ID careers.acme.com:swe-99999.",
+  "details": { "job_id": "careers.acme.com:swe-99999" }
+}
+```
+</div>
+
+The error envelope MUST include:
+
+- `ojcp_version` — The OJCP specification version.
+- `error_code` — A machine-readable error code from the standard set.
+- `message` — A human-readable error message.
+
+The error envelope MAY include:
+
+- `retry_after_seconds` — Seconds to wait before retrying. MUST be present when `error_code` is `rate_limited`.
+- `details` — Additional error context; shape varies by error code.
+
+Standard error codes:
+
+<table class="data">
+  <thead>
+    <tr><th>Code</th><th>Meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`invalid_request`</td><td>Malformed request or missing required parameters.</td></tr>
+    <tr><td>`missing_required_field`</td><td>A required field is missing from the input.</td></tr>
+    <tr><td>`invalid_field_value`</td><td>A field value is outside the allowed range or format.</td></tr>
+    <tr><td>`job_not_found`</td><td>The specified `job_id` does not exist.</td></tr>
+    <tr><td>`employer_not_found`</td><td>The specified `employer_id` does not exist.</td></tr>
+    <tr><td>`application_not_found`</td><td>The specified `application_id` does not exist.</td></tr>
+    <tr><td>`invalid_session_token`</td><td>The `session_token` is invalid or does not match the application.</td></tr>
+    <tr><td>`session_expired`</td><td>The application session has expired.</td></tr>
+    <tr><td>`no_agent_apply_path`</td><td>No apply path supports agent submission for this job.</td></tr>
+    <tr><td>`rate_limited`</td><td>Request rate limit exceeded. Check `retry_after_seconds`.</td></tr>
+    <tr><td>`unauthorized`</td><td>Authentication required but not provided.</td></tr>
+    <tr><td>`forbidden`</td><td>Authentication provided but insufficient permissions.</td></tr>
+    <tr><td>`provider_error`</td><td>Internal provider error. Agent should retry with backoff.</td></tr>
+  </tbody>
+</table>
+
+Verification-specific errors (e.g., `invalid_signature`, `expired_proof`) are returned in the `verification_errors` array of `submit_application` responses, not as top-level error codes.
+
+For MCP transport, errors MUST be returned as a JSON-RPC error with code `-32000` and the error envelope in the `data` field. For REST transport, errors MUST use appropriate HTTP status codes (400, 401, 403, 404, 429, 500) with the error envelope as the response body.
+
+## Custom Tools ## {#tool-custom}
+
+The six tools defined in [[#tool-search-jobs]] through [[#tool-check-application-status]] are the standard OJCP vocabulary. Providers MAY expose additional, provider-specific tools.
+
+Custom tools MUST use a namespaced name in the format `{provider}:{tool_name}` to distinguish them from standard tools. For example, `acme:get_referral_link` or `greenhouse:schedule_interview`. Standard tools use bare names (no prefix) — agents MUST recognize them.
+
+Custom tools are self-described via MCP's native `tools/list` method, which returns the tool name, description, and `inputSchema`. No additional manifest declaration is required, though providers MAY list custom tool names in the manifest `tools` array for discoverability.
+
+Agents SHOULD treat unrecognized tool names (those with a `:` separator) as provider-specific extensions and MAY invoke them based on their `description` and `inputSchema`. Agents MUST NOT assume custom tools follow standard OJCP response schemas.
+
+# Data Schemas # {#schemas}
+
+## JobPosting ## {#schema-job-posting}
+
+OJCP extends [schema.org's JobPosting](https://schema.org/JobPosting) with agent-specific fields.
+
+A conforming JobPosting MUST include:
+
+- `ojcp_id` — Unique job identifier. Providers are RECOMMENDED to use the format `{provider_domain}:{internal_id}` (e.g., `careers.acme.com:swe-42091`) to enable cross-provider deduplication when the same job appears on multiple boards. The value MUST be stable for the lifetime of the posting.
+- `title` — Job title
+- `employer` — Object with at minimum a `name` field
+- `datePosted` — ISO 8601 date
+
+A conforming JobPosting SHOULD include:
+
+- `apply_paths` — At least one [=apply path=] with `supports_agent_submission` indicated
+- `skills_required` — Required skills for agent matching
+- `baseSalary` — Compensation information
+- `employmentType` — Type of employment
+
+Note: Job posting fields that originate from schema.org (e.g., `employmentType`, `experienceLevel`, `jobLocation`, `baseSalary`) use camelCase to maintain compatibility. OJCP-specific extension fields (e.g., `skills_required`, `team_context`, `urgency`) and tool input parameters (e.g., `experience_level`, `salary_min`) use snake_case. Agents SHOULD handle both conventions.
+
+Note: Enumerated fields such as `employmentType` and `experience_level` define standard values but are intentionally open — providers MAY use additional values (e.g., `freelance`, `volunteer`, `apprenticeship`) and agents SHOULD handle unrecognized values gracefully. OJCP normalizes employment types to lowercase (e.g., `full_time`); schema.org uses UPPERCASE (`FULL_TIME`) — providers SHOULD map accordingly.
+
+OJCP-specific extension fields:
+
+- `skills_required` / `skills_preferred` — Structured skill lists for agent matching
+- `team_context` — Team and reporting structure description
+- `urgency` — How urgently the role needs to be filled (`low`, `moderate`, `high`, `critical`)
+- `application_volume_signal` — Relative application volume (`low`, `moderate`, `high`, `very_high`)
+- `requisition_id` — Internal ATS requisition or job ID for application routing
+- `department` — Department or business unit
+- `hiring_manager` — Name of the hiring manager
+- `remote_policy` — Remote work policy (`on_site`, `hybrid`, `remote`, `flexible`)
+- `agent_notes` — Free-text notes for agent consumption
+
+<div class="example">
+```json
+{
+  "@context": ["https://schema.org", "https://ojcp.dev/context/v1"],
+  "@type": "JobPosting",
+  "ojcp_id": "careers.acme.com:swe-42091",
+  "title": "Senior Software Engineer, Platform",
+  "employer": { "@type": "Organization", "name": "Acme Corp", "ojcp_employer_id": "acme-corp" },
+  "datePosted": "2026-02-28",
+  "validThrough": "2026-04-15",
+  "employmentType": "full_time",
+  "baseSalary": {
+    "@type": "MonetaryAmountDistribution",
+    "currency": "USD",
+    "minValue": 140000,
+    "maxValue": 185000,
+    "unitText": "YEAR"
+  },
+  "skills_required": ["Go", "Kubernetes", "distributed systems"],
+  "skills_preferred": ["Rust", "eBPF"],
+  "team_context": "Platform team of 12 engineers; reports to VP Engineering.",
+  "urgency": "high",
+  "apply_paths": [
+    {
+      "type": "provider_hosted",
+      "url": "https://careers.acme.com/apply/swe-42091",
+      "estimated_completion_minutes": 8,
+      "required_fields": ["resume", "work_authorization"],
+      "supports_agent_submission": true
+    }
+  ]
+}
+```
+</div>
+
+## CandidateContext ## {#schema-candidate-context}
+
+A minimal, consent-scoped candidate profile. Agents MUST NOT transmit candidate data beyond the declared `consent_scope`. The `resume_embedding_hash` field enables semantic match scoring without transmitting full resume text.
+
+A conforming [=Candidate Context=] MUST include:
+
+- `ojcp_candidate_context_version` — Schema version
+- `consent_scope` — The scope of consent granted by the candidate. Standard values:
+    - `search_personalization` — allows use for personalized job search results
+    - `fit_scoring` — allows use for fit score calculation
+    - `application_prefill` — allows use for pre-filling application fields (includes PII like name, email, resume)
+    - `full_profile` — allows full use of all candidate data
+
+The following table defines which fields are permitted at each consent scope level. Each scope includes all fields from lower scopes.
+
+<table class="data">
+  <thead>
+    <tr><th>Field</th><th>Minimum Scope</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`skills`, `experience_years`, `location_preference`, `employment_type_preference`</td><td>`search_personalization`</td></tr>
+    <tr><td>`current_title`, `salary_expectation`, `work_authorization`, `resume_embedding_hash`</td><td>`fit_scoring`</td></tr>
+    <tr><td>`name`, `email`, `resume_url`</td><td>`application_prefill`</td></tr>
+  </tbody>
+</table>
+
+`full_profile` permits all fields with no restrictions.
+
+Agents MUST NOT include fields beyond the declared `consent_scope`. Providers MUST ignore any field that exceeds the declared scope — dropping the field rather than rejecting the request. Providers SHOULD include a `warnings` array in the response with code `"fields_ignored"` listing the dropped field names so agents can detect misconfiguration.
+
+<div class="example">
+```json
+{
+  "ojcp_candidate_context_version": "0.1",
+  "consent_scope": "fit_scoring",
+  "skills": ["Python", "machine learning", "SQL"],
+  "experience_years": 6,
+  "current_title": "ML Engineer",
+  "location_preference": { "city": "Austin", "remote_ok": true },
+  "employment_type_preference": ["full_time"],
+  "salary_expectation": { "min": 150000, "currency": "USD" },
+  "work_authorization": "US_citizen"
+}
+```
+</div>
+
+## AgentDeclaration ## {#schema-agent-declaration}
+
+Agent self-identification for audit trails and rate limiting.
+
+A conforming [=Agent Declaration=] MUST include:
+
+- `agent_id` — Reverse-domain-notation identifier
+- `acting_on_behalf_of` — Who the agent represents (`human_user`, `recruiter`, `autonomous_workflow`)
+
+Agents SHOULD include a `user_consent_token` when submitting applications. For `autonomous` interaction modes, the token represents the operator's authorization rather than per-action user consent. The token format and verification mechanism are out of scope for v0.1 — providers decide what level of trust to require.
+
+<div class="example">
+```json
+{
+  "agent_id": "com.apple.intelligence.jobseeker",
+  "agent_version": "1.0",
+  "acting_on_behalf_of": "human_user",
+  "user_consent_token": "eyJhbGciOiJFZERTQSJ9...",
+  "interaction_mode": "assisted"
+}
+```
+</div>
+
+## EEOData ## {#schema-eeo-data}
+
+Voluntary Equal Employment Opportunity self-identification data carried in `application_data.eeo` when the candidate has chosen to disclose. EEO data collection is regulated — in the US by the EEOC and OFCCP; in the EU as Article 9 GDPR special-category data — and OJCP imposes additional protocol-level requirements beyond what those frameworks mandate.
+
+**Provider obligations:**
+
+- Providers MUST NOT require any EEO field for application acceptance. An application MUST be acceptable with an empty or omitted `eeo` object.
+- Providers MUST NOT use EEO data in fit scoring, screening question evaluation, or any decision that affects whether an application is forwarded, surfaced, or ranked.
+- Providers MUST treat `decline_to_answer` as semantically equivalent to omission — neither indicates non-membership in any protected class.
+- Providers SHOULD store EEO data segregated from primary application data, accessible only to compliance reporting workflows.
+
+**Agent obligations:**
+
+- Agents MUST only transmit EEO data when the candidate has explicitly chosen to disclose it for this specific application. Agents MUST NOT pre-fill EEO from a stored profile without per-submission consent.
+- Agents MUST NOT log or persist EEO data beyond the duration of the submission.
+
+A conforming [=EEO Data=] object MAY include any of the following — all fields are optional, and `decline_to_answer` MUST be a valid value where applicable:
+
+- `gender` — `male`, `female`, `non_binary`, `self_describe`, `decline_to_answer`
+- `gender_self_described` — Free-text when `gender` is `self_describe`
+- `race_ethnicity` — Multi-select array per US EEOC categories (`american_indian_or_alaska_native`, `asian`, `black_or_african_american`, `hispanic_or_latino`, `native_hawaiian_or_other_pacific_islander`, `white`, `two_or_more_races`, `decline_to_answer`)
+- `veteran_status` — `protected_veteran`, `not_protected_veteran`, `decline_to_answer`
+- `disability_status` — `yes`, `no`, `decline_to_answer`
+- `jurisdiction` — ISO 3166-1 alpha-2 country code identifying which regulatory framework's enumerations apply (default: `US`)
+
+Providers operating in non-US jurisdictions MAY define alternate enumerations for `race_ethnicity` and `veteran_status` appropriate to the local regulatory framework. The `jurisdiction` field signals which enumeration set is in effect.
+
+<div class="example">
+```json
+{
+  "eeo": {
+    "gender": "female",
+    "race_ethnicity": ["asian"],
+    "veteran_status": "not_protected_veteran",
+    "disability_status": "decline_to_answer",
+    "jurisdiction": "US"
+  }
+}
+```
+</div>
+
+## VerificationStep ## {#schema-verification-step}
+
+A discrete verification action required before an application can proceed. Returned in the `verification_steps` array of a `begin_application` response when `status` is `pending_verification`.
+
+A conforming [=Verification Step=] MUST include:
+
+- `step_id` — Unique identifier within the application session
+- `type` — Verification type (`identity`, `government_id`, `biometric`, `address`, `employment`, `education`, `background_check`)
+- `verifier_id` — Identifier of the [=Identity Verifier=]
+- `verification_url` — URL the candidate must visit to complete verification
+- `human_required` — Boolean; when true, the agent must hand off to the candidate
+
+A [=Verification Step=] MAY include:
+
+- `required` — Boolean indicating whether this step must be completed for the application to proceed. Defaults to true.
+- `proof_delivery` — `"agent_submitted"` (default) or `"provider_managed"`. Determines whether the agent must collect and submit the proof, or the provider handles it directly.
+- `verifier_name` — Human-readable name of the verifier
+- `instructions` — Instructions for the agent to relay to the candidate
+- `estimated_completion_minutes` — Expected time to complete
+- `expires_at` — When the verification URL expires
+
+## VerificationProof ## {#schema-verification-proof}
+
+A signed cryptographic artifact issued by an [=Identity Verifier=] after the candidate completes verification. Contains no PII.
+
+A conforming [=Verification Proof=] MUST include:
+
+- `step_id` — The verification step this proof satisfies
+- `verifier_id` — Identifier of the issuing verifier (MUST match the `iss` claim in `proof_token`)
+- `verification_type` — The type of verification performed
+- `proof_token` — JWS compact serialization (RFC 7515). The payload MUST include `iss`, `aud`, `sub`, `iat`, `exp`, and `nonce` claims.
+- `subject_hash` — SHA-256 hex digest of the verifier's canonical subject identifier (not reversible to PII)
+- `issued_at` — ISO 8601 timestamp (MUST match the `iat` claim)
+- `expires_at` — ISO 8601 timestamp (MUST match the `exp` claim)
+
+## VerifierManifest ## {#schema-verifier-manifest}
+
+Discovery document hosted by [=Identity Verifiers=] at `/.well-known/ojcp-verifier.json`. Enables providers to discover verifier capabilities and retrieve public keys for proof validation.
+
+A conforming [=Verifier Manifest=] MUST include:
+
+- `ojcp_verifier_version` — Schema version (`"0.1"`)
+- `verifier_id` — Unique identifier for the verifier
+- `verifier_name` — Human-readable name
+- `verification_types` — Array of supported verification types
+- `proof_format` — Format of issued proofs (`"jws"` for v0.1)
+- `public_keys_url` — URL to a JWK Set for proof signature validation
+
+A [=Verifier Manifest=] SHOULD include:
+
+- `verification_endpoint` — URL for initiating verification sessions
+- `proof_delivery_methods` — Supported delivery methods (`callback`, `redirect`, `polling`)
+- `signing_algorithms` — Supported JWS algorithms (ES256 RECOMMENDED)
+- `proof_ttl_seconds` — Default time-to-live for issued proofs
+
+# Apply Paths # {#apply-paths}
+
+OJCP normalizes the fragmented landscape of application mechanisms into a standard taxonomy:
+
+<table class="data">
+  <thead>
+    <tr><th>Type</th><th>Description</th><th>Agent Submission</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`ats_direct`</td><td>Apply directly via ATS (Workday, Greenhouse, Lever, etc.)</td><td>Varies by ATS</td></tr>
+    <tr><td>`provider_hosted`</td><td>Provider controls the apply flow and delivers to ATS</td><td>Full support</td></tr>
+    <tr><td>`platform_native`</td><td>Third-party platform owns the flow (e.g., Indeed Apply, Easy Apply)</td><td>Limited</td></tr>
+    <tr><td>`email`</td><td>Legacy email-based application</td><td>Not supported</td></tr>
+    <tr><td>`external_redirect`</td><td>Redirect to opaque external page</td><td>Not supported</td></tr>
+    <tr><td>`custom`</td><td>Catch-all for non-standard apply mechanisms</td><td>Varies</td></tr>
+  </tbody>
+</table>
+
+Each [=apply path=] object MUST include:
+
+- `type` — One of the types above
+- `supports_agent_submission` — Boolean indicating agent compatibility
+
+Each [=apply path=] object SHOULD include:
+
+- `url` — Application entry point
+- `required_fields` — Fields required for submission
+- `optional_fields` — Additional fields the provider will accept but does not require
+- `estimated_completion_minutes` — Expected time to complete
+
+Each [=apply path=] object MAY include:
+
+- `product_name` — Vendor product name for this apply path (e.g., "Hosted Apply", "Indeed Apply", "Easy Apply"). Informational only; agents MUST NOT use this for logic.
+- `form_skill_url` — URL to a form skill descriptor that teaches agents how to fill out this [=apply path=]'s form, including field mappings to [=Candidate Context=], validation rules, conditional logic, and submission instructions. Providing a form skill can enable agent submission even for [=apply paths=] (like `ats_direct`) that would otherwise require human interaction. The form skill schema is defined in a companion specification.
+- `requires_verification` — Boolean indicating whether identity verification is required before the application can be submitted via this path.
+- `accepted_verifiers` — Array of [=Identity Verifier=] identifiers (e.g., `"id.me"`, `"clear"`) accepted for this [=apply path=]. If omitted when `requires_verification` is true, the provider accepts any verifier listed in the manifest's `supported_verifiers`.
+
+Providers are RECOMMENDED to implement at least one [=apply path=] where `supports_agent_submission` is `true`.
+
+# Resume Upload # {#resume-upload}
+
+`application_data.resume_url` requires a hosted URL pointing to the candidate's resume. Agents working with locally-stored resumes (computer-use agents, browser extensions reading user files, mobile agents) need a way to obtain that URL. OJCP defines an optional resume upload endpoint that providers can expose so agents do not have to operate their own file hosting.
+
+Resume upload is OPTIONAL. Providers that prefer not to host candidate files do not declare the endpoint, and agents are responsible for hosting resumes themselves.
+
+## Endpoint Discovery ## {#resume-discovery}
+
+Providers that accept resume uploads declare the endpoint in their [=Job Manifest=] under `resume_upload`:
+
+```json
+{
+  "resume_upload": {
+    "endpoint": "https://careers.acme.com/ojcp/v1/upload/resume",
+    "max_size_mb": 10,
+    "max_uploads_per_session": 5,
+    "accepted_mime_types": [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ]
+  }
+}
+```
+
+Agents check for `resume_upload` in the manifest. If absent, the provider does not accept uploads — agents must supply a hosted `resume_url` they obtained elsewhere.
+
+## Upload Request ## {#resume-request}
+
+Upload is a `multipart/form-data` POST to the declared endpoint:
+
+```http
+POST /ojcp/v1/upload/resume HTTP/1.1
+Host: careers.acme.com
+Authorization: Bearer {session_token}
+Content-Type: multipart/form-data; boundary=----abc
+
+------abc
+Content-Disposition: form-data; name="resume"; filename="resume.pdf"
+Content-Type: application/pdf
+
+[binary file content]
+------abc--
+```
+
+The request MUST include:
+
+- `Authorization: Bearer {session_token}` — the `session_token` returned by `begin_application`. Uploads are bound to a specific application session. Anonymous uploads are NOT permitted.
+- A single `resume` field in the multipart body containing the file.
+
+The request MAY include additional form fields the provider documents — these are out of scope for OJCP v0.1.
+
+## Upload Response ## {#resume-response}
+
+On success, the provider returns HTTP 200 with a JSON body:
+
+```json
+{
+  "ojcp_version": "0.1",
+  "resume_url": "https://uploads.careers.acme.com/r/abc123def?sig=...",
+  "expires_at": "2026-04-30T12:00:00Z",
+  "filename": "resume.pdf",
+  "size_bytes": 245678,
+  "mime_type": "application/pdf"
+}
+```
+
+The response MUST include:
+
+- `ojcp_version` — The OJCP version.
+- `resume_url` — A URL the agent passes in `submit_application.application_data.resume_url`. The URL MUST be valid for at least as long as the application session.
+- `expires_at` — ISO 8601 timestamp after which the URL stops resolving.
+
+The response SHOULD include `filename`, `size_bytes`, and `mime_type` to confirm what was accepted.
+
+The returned URL SHOULD be cryptographically signed and time-limited so it cannot be reused outside the issuing session.
+
+## Server-Side Validation ## {#resume-validation}
+
+Providers MUST:
+
+- Validate the `Content-Length` header before accepting the upload. Reject (HTTP 413) if it exceeds `max_size_mb`. Streaming uploads MUST be aborted if the cumulative byte count exceeds the cap mid-transfer.
+- Validate the file's MIME type by inspecting the file content (magic bytes), not by trusting the client-supplied `Content-Type`. Reject if the content type is not in `accepted_mime_types`.
+- Enforce `max_uploads_per_session` against the supplied `session_token`.
+- Reject uploads with an invalid, expired, or revoked `session_token` with error `invalid_session_token`.
+
+Providers SHOULD scan uploads for malware before issuing the `resume_url`. Providers MAY reject any upload at their discretion.
+
+## Error Responses ## {#resume-errors}
+
+The upload endpoint returns the standard OJCP error envelope ([[#tool-errors]]) with the following additional codes:
+
+<table class="data">
+  <thead>
+    <tr><th>Code</th><th>HTTP status</th><th>Meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`upload_too_large`</td><td>413</td><td>File exceeds `max_size_mb`.</td></tr>
+    <tr><td>`upload_quota_exceeded`</td><td>429</td><td>Session has reached `max_uploads_per_session`.</td></tr>
+    <tr><td>`upload_format_rejected`</td><td>415</td><td>File MIME type is not in `accepted_mime_types`, or content-sniffed type does not match the claimed type.</td></tr>
+    <tr><td>`upload_virus_detected`</td><td>422</td><td>File failed the provider's malware scan.</td></tr>
+    <tr><td>`invalid_session_token`</td><td>401</td><td>Bearer token missing, invalid, or expired.</td></tr>
+  </tbody>
+</table>
+
+The standard `rate_limited` error code applies when the manifest's `rate_limits` are exceeded. Upload-specific 429 responses (quota exceeded) are distinct from rate limiting and use `upload_quota_exceeded`.
+
+## Security ## {#resume-security}
+
+- **Session binding.** Each upload is scoped to one `application_id` via the `session_token`. Reusing a token from a different session SHOULD fail.
+- **URL non-enumeration.** Returned `resume_url` values MUST NOT be sequential or guessable. Providers SHOULD use signed URLs or opaque tokens with sufficient entropy (≥128 bits).
+- **TTL enforcement.** Providers MUST stop serving the resume URL after `expires_at`, even if the application is still active. Resume URLs in `application_data.resume_url` are intended for the provider's ATS pipeline, not for long-term hosting.
+- **PII handling.** Resumes contain PII. Providers MUST treat uploaded files with the same protections as candidate-supplied PII elsewhere in OJCP, including the segregation guidance in [[#schema-eeo-data]] where applicable.
+- **Cleanup.** Providers SHOULD purge or anonymize uploaded resumes when the application is abandoned per [[#identity-async-abandonment]].
+
+# Provider Trust # {#provider-trust}
+
+Any site can publish an OJCP manifest. Without a trust mechanism, agents have no way to distinguish a legitimate employer from a malicious actor harvesting candidate PII. OJCP defines a layered trust model so agents can verify "the manifest is authentic and authorized by the domain owner" before transmitting candidate data.
+
+The model uses existing primitives — HTTPS, JWS, JWK Sets — rather than introducing new infrastructure. Manifest signing is OPTIONAL for v0.1; unsigned providers remain interoperable but cannot reach the `verified` or `audited` registry tiers and SHOULD be treated with reduced trust by agents handling PII.
+
+## Threat Model ## {#trust-threats}
+
+OJCP-aware agents face three primary trust risks when interacting with providers:
+
+1. **Imposter providers.** A malicious actor stands up `careers.fake-employer.com` with an OJCP manifest declaring fake jobs. Agents submit applications containing candidate PII (resume URL, email, work authorization) which the actor harvests for phishing, identity fraud, or sale.
+2. **Manifest tampering.** A legitimate provider's manifest is intercepted or compromised — the served manifest is modified to redirect application submissions to an attacker-controlled endpoint.
+3. **Stale or revoked credentials.** A formerly-legitimate provider's signing key is compromised; agents that cached the manifest continue to trust it after the key has been rotated.
+
+Provider trust addresses all three. It does not address agent-side threats (a bad agent submitting spam to a legitimate provider) — those are addressed separately in [[#security-employer]] and [[#open-questions]].
+
+## Manifest Signing ## {#trust-manifest-signing}
+
+A provider MAY sign its manifest by including a `signature` field. The signature is a JSON Web Signature ([[RFC7515]]) computed over the manifest content with the `signature` field excluded.
+
+The `signature` object MUST include:
+
+- `alg` — Signing algorithm. `ES256` (ECDSA with P-256 and SHA-256) is RECOMMENDED. `RS256`, `ES384`, and `RS384` are acceptable.
+- `kid` — Key identifier matching a key in the provider's JWK Set ([[#trust-jwks]]).
+- `signed_at` — ISO 8601 timestamp when the signature was created.
+- `expires_at` — ISO 8601 timestamp when the signature expires. RECOMMENDED 24 hours from `signed_at`.
+- `value` — Base64url-encoded signature bytes.
+
+The `signature` object SHOULD include:
+
+- `iss` — The provider domain or identifier this signature attests. Agents MUST verify this matches the domain serving the manifest.
+
+<div class="example">
+A signed manifest:
+
+```json
+{
+  "ojcp_version": "0.1",
+  "provider": { "name": "Acme Corp Careers", "employer_id": "acme-corp" },
+  "tools": ["search_jobs", "get_job_detail", "begin_application", "submit_application", "check_application_status"],
+  "apply_paths": ["provider_hosted", "ats_direct"],
+  "signature": {
+    "alg": "ES256",
+    "kid": "acme-key-2026-q2",
+    "iss": "careers.acme.com",
+    "signed_at": "2026-04-29T12:00:00Z",
+    "expires_at": "2026-04-30T12:00:00Z",
+    "value": "MEUCIQDx2..."
+  }
+}
+```
+</div>
+
+### Canonicalization ### {#trust-canonicalization}
+
+To produce or verify a signature, both parties MUST canonicalize the manifest content identically:
+
+1. Remove the `signature` field from the manifest object.
+2. Serialize the resulting object using JCS (JSON Canonicalization Scheme, [[!RFC8785]]).
+3. Compute the signature over the canonicalized bytes.
+
+Agents MUST use JCS for verification. Providers that produce signatures using other canonicalization schemes will produce signatures agents cannot validate.
+
+## JWK Set Discovery ## {#trust-jwks}
+
+A signing provider MUST publish a JWK Set ([[RFC7517]]) at:
+
+```
+/.well-known/ojcp-keys.json
+```
+
+The JWK Set MUST be served over HTTPS with `Content-Type: application/jwk-set+json`. Each key MUST include `kid`, `kty`, and `alg` fields.
+
+Agents validate signatures by:
+
+1. Fetching the JWK Set from `{provider_origin}/.well-known/ojcp-keys.json`.
+2. Resolving the `kid` from the manifest's `signature` object against the set.
+3. Verifying the `alg` in the signature matches the key's `alg`.
+4. Verifying the signature over the canonicalized manifest content.
+
+Agents SHOULD cache JWK Sets with a TTL of 1 hour. Agents MUST refetch the JWK Set when encountering an unknown `kid`.
+
+### Key Rotation ### {#trust-key-rotation}
+
+Providers SHOULD rotate signing keys periodically (RECOMMENDED: every 90 days). Rotation procedure:
+
+- The provider MUST publish both old and new keys in the JWK Set for an overlap period of at least 24 hours.
+- The provider SHOULD begin signing new manifests with the new key as soon as the new key is published.
+- After the overlap period, the provider MAY remove the old key. Manifests signed with the removed key will no longer validate — this is expected, since they should have expired.
+
+Providers MUST NOT hard-code `kid` values or signing keys in agent libraries. Keys are always resolved dynamically from the JWK Set.
+
+## Validation Procedure ## {#trust-validation}
+
+When an agent encounters a manifest with a `signature` field, it MUST perform the following validation steps before trusting the manifest for [=Candidate Context=] transmission at `consent_scope` of `application_prefill` or `full_profile`, or before submitting `application_data`:
+
+1. **Domain match.** Verify that the manifest was fetched over HTTPS from a domain matching the `signature.iss` claim (when present). Reject on mismatch — error: `domain_mismatch`.
+2. **Canonicalize.** Reproduce the canonicalized manifest bytes per [[#trust-canonicalization]].
+3. **Resolve key.** Fetch (or use cached) JWK Set from `{origin}/.well-known/ojcp-keys.json`. Find the key matching `signature.kid`. Refetch on cache miss. Reject if not found — error: `key_resolution_failed`.
+4. **Verify algorithm.** Verify `signature.alg` matches the JWK's declared algorithm. Reject on mismatch — error: `algorithm_mismatch`.
+5. **Verify signature.** Validate the JWS signature over the canonicalized bytes using the resolved key. Reject on failure — error: `invalid_signature`.
+6. **Check expiration.** Verify `signature.expires_at` is in the future, with a clock skew tolerance of 60 seconds. Reject if expired — error: `expired_signature`.
+
+If any step fails, the agent MUST treat the manifest as `unverified` and apply the corresponding restrictions ([[#trust-agent-obligations]]).
+
+## When to Validate ## {#trust-when-to-validate}
+
+Signature validation imposes cost (one extra HTTPS fetch per provider on cold cache, plus a signature verify). To minimize overhead, agents validate **lazily — at the consent boundary**.
+
+Agents MUST validate the manifest signature before:
+
+- Submitting `application_data` via `submit_application`
+- Transmitting `candidate_context` with `consent_scope` of `application_prefill` or `full_profile`
+
+Agents MAY skip validation for read-only operations:
+
+- `search_jobs`
+- `get_job_detail`
+- `get_employer_context`
+- Transmitting `candidate_context` with `consent_scope` of `search_personalization` or `fit_scoring`
+
+This means an agent browsing jobs pays no signing cost. Validation runs only when the agent is about to send PII or initiate a real application.
+
+## Registry Trust Tiers ## {#trust-tiers}
+
+The OJCP Registry ([[#discovery-registry]]) classifies listed providers into three tiers based on accumulated trust signals:
+
+<table class="data">
+  <thead>
+    <tr><th>Tier</th><th>Requirements</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>`unverified`</td>
+      <td>Manifest exists at `/.well-known/ojcp.json` and parses as valid OJCP. No signature required. Default tier on first registration.</td>
+    </tr>
+    <tr>
+      <td>`verified`</td>
+      <td>All `unverified` requirements, plus: manifest carries a valid signature ([[#trust-manifest-signing]]) and the registry has confirmed the employer identity (e.g., business registration cross-check, LinkedIn company page match, DUNS lookup, or equivalent).</td>
+    </tr>
+    <tr>
+      <td>`audited`</td>
+      <td>All `verified` requirements, plus: the provider passes the OJCP conformance test suite, has completed a security review covering manifest signing key handling and PII flows, and has been listed without abuse reports for at least 90 days.</td>
+    </tr>
+  </tbody>
+</table>
+
+The `find_ojcp_providers` response includes a `trust_tier` field for each provider. Agents MAY filter results by `min_trust_tier` (e.g., only return `verified` or higher).
+
+The registry exposes a `manifest_signed` boolean alongside `trust_tier` so agents can distinguish "the manifest is signed" from "the registry has additionally verified employer identity."
+
+## Agent Obligations ## {#trust-agent-obligations}
+
+Agents MUST adjust their behavior based on the trust signals available for a provider:
+
+<table class="data">
+  <thead>
+    <tr><th>Provider state</th><th>Maximum `consent_scope`</th><th>Submission allowed?</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Manifest unsigned, no registry record</td>
+      <td>`fit_scoring`</td>
+      <td>Only with explicit, per-submission user consent</td>
+    </tr>
+    <tr>
+      <td>Manifest signed, registry tier `unverified`</td>
+      <td>`fit_scoring`</td>
+      <td>Only with explicit, per-submission user consent</td>
+    </tr>
+    <tr>
+      <td>Registry tier `verified`</td>
+      <td>`application_prefill`</td>
+      <td>Yes, subject to standard consent rules</td>
+    </tr>
+    <tr>
+      <td>Registry tier `audited`</td>
+      <td>`full_profile`</td>
+      <td>Yes, subject to standard consent rules</td>
+    </tr>
+  </tbody>
+</table>
+
+Agents SHOULD surface the trust tier to end users before submission so candidates can make informed decisions. Agents MUST NOT attempt to upgrade a provider's effective trust tier through caching or by ignoring failed signature validations.
+
+## Provider-Side Considerations ## {#trust-provider-considerations}
+
+Providers SHOULD sign their manifests to enable the `verified` registry tier and avoid the agent-side restrictions on unsigned providers. Implementation notes:
+
+- The signing key MUST be kept secure. A compromised signing key allows an attacker to mint manifests that agents will trust until the key is revoked from the JWK Set.
+- Manifests SHOULD be re-signed regularly (RECOMMENDED: daily) to keep the `signature.expires_at` window short. This limits the window in which a compromised manifest can be served.
+- Build pipelines SHOULD sign manifests automatically rather than requiring human intervention. Long-lived signatures from manual signing increase risk.
+- Providers operating multiple subdomains (e.g., `careers.acme.com` and `jobs.acme.com`) MAY share a single JWK Set if both domains can serve it — the `signature.iss` claim distinguishes which domain a given signature is bound to.
+
+# Identity Verification # {#identity-verification}
+
+As AI agents begin submitting applications on behalf of candidates, employers increasingly need to verify that a real, identifiable human stands behind each submission. OJCP defines how agents discover, orchestrate, and submit identity [=Verification Proofs=] without PII ever flowing through the protocol.
+
+## Overview ## {#identity-overview}
+
+Identity verification in OJCP is a three-party interaction:
+
+1. The **provider** declares which [=apply paths=] require verification and which [=Identity Verifiers=] are accepted. The provider initiates verification sessions with verifiers and may collect proofs directly (**provider-managed**) or delegate proof collection to the agent (**agent-submitted**).
+2. The **agent** detects verification requirements, presents the verification URL to the candidate, and — for agent-submitted flows — collects the resulting proof and submits it with the application.
+3. The **[=Identity Verifier=]** (e.g., ID.me, Clear) performs the actual verification (face scan, document upload, etc.) and issues a signed [=Verification Proof=].
+
+## Flow ## {#identity-flow}
+
+The verification flow depends on the `proof_delivery` mode declared in each [=Verification Step=]:
+
+### Agent-Submitted Flow ### {#identity-flow-agent}
+
+When `proof_delivery` is `"agent_submitted"` (or omitted — this is the default):
+
+1. Agent calls `begin_application` — provider returns `status: "pending_verification"` with a `verification_steps` array.
+2. Agent inspects each step's `type`, `verifier_id`, `verification_url`, and `proof_delivery`.
+3. Agent presents the `verification_url` to the candidate (opens browser, deep link, etc.). The `human_required` flag indicates the agent cannot complete this step itself.
+4. Candidate completes verification with the [=Identity Verifier=] (face scan, government ID upload, etc.).
+5. [=Identity Verifier=] issues a [=Verification Proof=] — a signed JWS artifact.
+6. Proof is delivered to the agent (see [[#identity-proof-delivery]]).
+7. Agent calls `submit_application` with the `verification_proofs` array and the `session_token` from step 1.
+8. Provider validates each proof (see [[#identity-claim-validation]]).
+9. Application accepted — status transitions to `submitted`.
+
+### Provider-Managed Flow ### {#identity-flow-provider}
+
+When `proof_delivery` is `"provider_managed"` (common for embedded verification like an iframe within an apply form):
+
+1. Agent calls `begin_application` — provider returns `status: "pending_verification"` with a `verification_steps` array where `proof_delivery` is `"provider_managed"`.
+2. Agent presents the `verification_url` to the candidate.
+3. Candidate completes verification. The proof is delivered directly to the provider via server callback or iframe `postMessage` — the agent never handles the proof.
+4. Agent polls `check_application_status` until the status advances from `pending_verification`.
+5. Agent calls `submit_application` **without** `verification_proofs` — the provider already has them.
+6. Application accepted — status transitions to `submitted`.
+
+For provider-managed steps, `verification_proofs` in `submit_application` is NOT required. Providers MUST NOT return `missing_proof` errors for steps where `proof_delivery` was `"provider_managed"`.
+
+## No PII Through OJCP ## {#identity-no-pii}
+
+[=Verification Proofs=] MUST NOT contain personally identifiable information. A proof contains:
+
+- `subject_hash` — A one-way hash identifying the verified individual. Not reversible to PII.
+- `verification_type` — What was verified (e.g., `identity`, `biometric`).
+- `verifier_id` — Who verified it.
+- `issued_at` / `expires_at` — Timestamps.
+- `proof_token` — The signed artifact itself.
+
+Biometric data, government ID numbers, names, and dates of birth MUST remain with the [=Identity Verifier=] and MUST NOT be transmitted through OJCP or to the provider.
+
+## Session Initiation ## {#identity-session-initiation}
+
+When a provider receives a `begin_application` request for a job that requires identity verification, the provider MUST create a verification session with each required [=Identity Verifier=] before returning the `pending_verification` response.
+
+The provider initiates a session by sending a POST request to the verifier's `verification_endpoint` (declared in the verifier's manifest). The request SHOULD include:
+
+- `provider_id` — The provider's domain or identifier. Becomes the `aud` claim in the proof.
+- `verification_type` — The type of verification required (e.g., `"identity"`, `"background_check"`).
+- `nonce` — A unique, application-scoped value that binds the resulting proof to this specific application session. Providers MUST use the `application_id` or a derivative.
+- `callback_url` — (For `provider_managed` delivery) The HTTPS URL where the verifier should POST the proof upon completion.
+- `redirect_url` — (For `agent_submitted` delivery via redirect) The URL to redirect the candidate's browser to after verification, with the `proof_token` appended as a query parameter.
+
+The verifier responds with:
+
+- `session_id` — The verifier's internal session identifier.
+- `verification_url` — A session-scoped URL where the candidate completes verification. This URL is what the provider includes in the `verification_steps` array.
+- `expires_at` — When the verification session expires.
+
+<div class="example">
+Provider → Verifier session initiation request:
+
+```json
+POST https://verify.clear.me/ojcp/start
+{
+  "provider_id": "careers.acme.com",
+  "verification_type": "identity",
+  "nonce": "app_abc123",
+  "callback_url": "https://careers.acme.com/ojcp/verify/callback"
+}
+```
+
+Verifier response:
+
+```json
+{
+  "session_id": "clear_sess_789",
+  "verification_url": "https://verify.clear.me/session/clear_sess_789",
+  "expires_at": "2026-03-20T12:00:00Z"
+}
+```
+</div>
+
+Note: The session initiation protocol between provider and verifier is intentionally minimal. Verifiers MAY require additional parameters (API keys, webhook signatures, etc.) — these are bilateral agreements outside the scope of OJCP. OJCP defines the *proof format*, *delivery model*, and *validation procedure*; the verifier's internal session API is their own.
+
+## Proof Delivery ## {#identity-proof-delivery}
+
+After a candidate completes verification, the [=Verification Proof=] must reach the party that will submit it to the provider. OJCP defines two delivery models, declared via the `proof_delivery` field on each [=Verification Step=]:
+
+### Provider-Managed Delivery ### {#identity-delivery-provider}
+
+When `proof_delivery` is `"provider_managed"`, the provider collects the proof directly from the verifier without agent involvement. This model is typical for embedded verification flows — for example, an [=Identity Verifier=] rendered as an iframe step within an apply form.
+
+Delivery channels for provider-managed proofs:
+
+- **Server callback** — The verifier POSTs the signed proof to the `callback_url` the provider supplied during [[#identity-session-initiation]]. This is the RECOMMENDED channel for provider-managed delivery. The callback payload SHOULD include `session_id`, `proof_token`, and `verification_type`.
+- **Client-side messaging** — For iframe embeddings, the verifier's page sends the proof to the parent frame via `window.parent.postMessage()`. The provider's page listens for the message and extracts the proof.
+
+In both cases, the agent never handles the proof. The agent polls `check_application_status` until verification completes, then calls `submit_application` without `verification_proofs`.
+
+### Agent-Submitted Delivery ### {#identity-delivery-agent}
+
+When `proof_delivery` is `"agent_submitted"` (or omitted), the agent is responsible for collecting the proof and including it in `submit_application`. Delivery channels:
+
+- **Redirect** — After verification, the verifier redirects the candidate's browser to the `redirect_url` (if provided during session initiation) with `proof_token` as a query parameter. The agent or its browser extension captures the token from the redirect.
+- **Polling** — The agent polls the verifier's session status endpoint (e.g., `GET {verification_endpoint}/{session_id}`) to check whether verification is complete and retrieve the `proof_token`. Verifiers that support polling SHOULD declare `"polling"` in their manifest's `proof_delivery_methods`.
+
+Agents SHOULD prefer redirect-based delivery when available, falling back to polling. Agents MUST NOT poll more frequently than once every 5 seconds.
+
+## Proof Format and Required Claims ## {#identity-proof-format}
+
+The `proof_token` in a [=Verification Proof=] MUST be a JWS (JSON Web Signature, [[RFC7515]]) in compact serialization format.
+
+### JWS Header ### {#identity-jws-header}
+
+The JWS header MUST include:
+
+- `alg` — The signing algorithm. `ES256` (ECDSA with P-256 and SHA-256) is RECOMMENDED. `RS256` (RSASSA-PKCS1-v1_5 with SHA-256) is acceptable. `ES384` and `RS384` (384-bit variants) are also permitted. Verifiers declare supported algorithms in their manifest's `signing_algorithms` field.
+- `kid` — Key identifier matching a key in the verifier's JWK Set.
+
+### Required JWT Claims ### {#identity-jwt-claims}
+
+The JWS payload MUST include the following claims:
+
+- `iss` (Issuer) — The `verifier_id` of the [=Identity Verifier=] that issued the proof. Providers MUST verify this matches the expected verifier.
+- `aud` (Audience) — The provider domain or identifier this proof is intended for. Proofs with a specific `aud` are scoped to one provider. Verifiers MAY issue proofs with `aud: "*"` to enable cross-provider reuse; providers MAY reject wildcard-audience proofs.
+- `sub` (Subject) — The `subject_hash` — a SHA-256 hex digest of the verifier's canonical subject identifier. MUST NOT be reversible to PII.
+- `iat` (Issued At) — NumericDate when the proof was issued ([[RFC7519]] Section 4.1.6).
+- `exp` (Expiration Time) — NumericDate when the proof expires.
+- `nonce` — An application-scoped value binding this proof to a specific application session. The `nonce` claim MUST always be present. Providers MUST use the `application_id` as the nonce value. Providers MUST reject proofs where the `nonce` does not match the expected `application_id` for the application.
+
+### Subject Hash ### {#identity-subject-hash}
+
+The `subject_hash` (and corresponding `sub` claim) MUST be computed as:
+
+```
+subject_hash = SHA-256( canonical_subject_identifier )
+```
+
+Where `canonical_subject_identifier` is a stable, verifier-internal identifier for the verified individual (e.g., the verifier's internal user ID). The algorithm is always SHA-256; the output is a lowercase hex string. The identifier MUST be stable across verification sessions for the same individual to enable proof reuse.
+
+### JWKS Discovery ### {#identity-jwks}
+
+Providers validate proof signatures against the verifier's published JWK Set ([[RFC7517]]). The JWK Set URL is declared in the verifier manifest as `public_keys_url`.
+
+Providers SHOULD:
+
+- Fetch the JWK Set over HTTPS and cache it. A cache TTL of 1 hour is RECOMMENDED; providers MUST refetch when encountering an unknown `kid`.
+- Match the `kid` from the JWS header to a key in the JWK Set.
+- Verify the `alg` in the JWS header matches the key's `alg` field.
+- Reject proofs signed with algorithms not in the verifier's declared `signing_algorithms`.
+
+### Key Rotation ### {#identity-key-rotation}
+
+[=Identity Verifiers=] SHOULD rotate signing keys periodically (RECOMMENDED: every 90 days). During rotation:
+
+- The verifier MUST publish both old and new keys in its JWK Set for an overlap period of at least 24 hours. This ensures proofs signed with the outgoing key remain validatable during the transition.
+- The verifier SHOULD begin signing new proofs with the new key immediately, while keeping the old key in the JWK Set.
+- After the overlap period, the verifier MAY remove the old key from the JWK Set. Proofs signed with the removed key will no longer validate — this is expected, as they should have expired by then.
+
+Providers MUST handle key rotation gracefully:
+
+- When a `kid` is not found in the cached JWK Set, refetch the set before rejecting the proof.
+- Do not hard-code `kid` values or signing keys. Always resolve dynamically from the JWK Set.
+
+### Clock Skew ### {#identity-clock-skew}
+
+When validating `iat` and `exp` claims, providers MUST allow for reasonable clock drift between systems. A tolerance of **60 seconds** is RECOMMENDED. Providers MUST NOT accept proofs where `exp` is more than 60 seconds in the past, or where `iat` is more than 60 seconds in the future.
+
+## Verifier Discovery ## {#identity-discovery}
+
+[=Identity Verifiers=] MAY host a descriptor at `/.well-known/ojcp-verifier.json`:
+
+<div class="example">
+```json
+{
+  "ojcp_verifier_version": "0.1",
+  "verifier_id": "id.me",
+  "verifier_name": "ID.me",
+  "description": "Identity verification for workforce and government applications.",
+  "verification_types": ["identity", "government_id", "biometric"],
+  "verification_endpoint": "https://verify.id.me/ojcp/start",
+  "proof_delivery_methods": ["callback", "redirect", "polling"],
+  "proof_format": "jws",
+  "signing_algorithms": ["ES256"],
+  "proof_ttl_seconds": 86400,
+  "public_keys_url": "https://id.me/.well-known/ojcp-verifier-keys.json",
+  "supported_countries": ["US"]
+}
+```
+</div>
+
+The `public_keys_url` endpoint returns a JWK Set that providers use to validate [=Verification Proof=] signatures.
+
+Providers declare accepted verifiers in their [=Job Manifest=] via the `supported_verifiers` field.
+
+Note: The verifier manifest schema also allows `proof_format: "jws+jwe"` to signal support for signed-then-encrypted proofs ([[RFC7516]]). However, JWE handling rules (key exchange, encryption algorithms, decryption procedures) are not defined in OJCP v0.1. Providers SHOULD reject `jws+jwe` proofs they cannot decrypt. Full JWE support will be defined in a future version of this specification.
+
+## Proof Reuse ## {#identity-proof-reuse}
+
+[=Verification Proofs=] are bound to a specific application session via the `nonce` claim and are NOT reusable across applications. A proof issued for one `application_id` cannot be replayed against a different application.
+
+- **Audience-scoped proofs** (`aud` set to a specific provider): Bound to one provider and one application.
+- **Wildcard-audience proofs** (`aud: "*"`): Can be submitted to any provider, but only for the application matching the `nonce`. This allows a candidate to verify once and apply to multiple jobs in a single session, as long as the provider mints a new `application_id` (and thus a new `nonce`) for each.
+
+Agents MUST NOT cache proofs beyond their `expires_at`. Providers MUST reject proofs where the `nonce` does not match the expected `application_id`. Providers MAY reject proofs from unrecognized verifiers. Providers SHOULD reject proofs older than the verifier's declared `proof_ttl_seconds` even if `expires_at` has not passed.
+
+## Asynchronous Verification ## {#identity-async}
+
+Some verifications complete in seconds (face scan, government ID upload). Others take days (employment verification, background check). OJCP defines polling guidance, completion expectations, and abandonment semantics so agents and providers behave predictably across the full timescale.
+
+### Expected Completion Times ### {#identity-async-times}
+
+The following ranges are typical defaults. Providers MAY override per-step via `estimated_completion_minutes` on a [=Verification Step=]. Agents SHOULD prefer the per-step value when present.
+
+<table class="data">
+  <thead>
+    <tr><th>Verification type</th><th>Typical range</th><th>Polling tier</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`identity`</td><td>2–10 minutes</td><td>Fast</td></tr>
+    <tr><td>`government_id`</td><td>2–10 minutes</td><td>Fast</td></tr>
+    <tr><td>`biometric`</td><td>2–10 minutes</td><td>Fast</td></tr>
+    <tr><td>`address`</td><td>1–24 hours</td><td>Slow</td></tr>
+    <tr><td>`employment`</td><td>1–3 business days</td><td>Slow</td></tr>
+    <tr><td>`education`</td><td>2–7 business days</td><td>Slow</td></tr>
+    <tr><td>`background_check`</td><td>1–5 business days</td><td>Slow</td></tr>
+  </tbody>
+</table>
+
+### Polling Cadence ### {#identity-async-polling}
+
+When `proof_delivery` is `provider_managed`, agents poll `check_application_status` to detect verification completion. Cadence depends on the elapsed time relative to `estimated_completion_minutes`:
+
+- **Active phase** (elapsed time ≤ estimated_completion_minutes): Poll every 30 seconds.
+- **Extended phase** (1× to 3× estimated_completion_minutes): Poll every 5 minutes.
+- **Long-tail phase** (3× to 24× estimated_completion_minutes): Poll every 1 hour.
+- **Stalled phase** (> 24× estimated_completion_minutes, but before `verification_deadline`): Poll every 6 hours.
+
+Agents MUST NOT poll `check_application_status` more frequently than once every 30 seconds for any single application. Providers SHOULD return HTTP 429 with `Retry-After` if an agent exceeds this rate.
+
+Agents SHOULD honor any `Retry-After` value returned by the provider, even when it exceeds the cadence above.
+
+### Verification Deadline ### {#identity-async-deadline}
+
+Each application with verification requirements has a `verification_deadline` — the absolute time after which any incomplete verification causes the application to transition to `expired`.
+
+The `verification_deadline` is returned in the `begin_application` response and is a top-level field on the response object alongside `verification_steps`. Default values:
+
+- If all verification steps are `Fast` tier: 24 hours from `begin_application`.
+- If any step is `Slow` tier: 14 days from `begin_application`.
+- Providers MAY set custom deadlines; the value MUST be returned to the agent so it can plan polling behavior.
+
+When `verification_deadline` is reached:
+
+- Provider MUST transition the application status to `expired`.
+- Provider MUST NOT accept further `verification_proofs` for that `application_id`.
+- Provider MUST NOT accept `submit_application` for that `application_id`.
+- Agents MUST stop polling for that application.
+
+### Abandonment Semantics ### {#identity-async-abandonment}
+
+An application is considered **abandoned** when:
+
+- `verification_deadline` is reached with one or more required steps incomplete, OR
+- The candidate explicitly cancels (out of band — UI cancellation, agent revokes consent), OR
+- The agent has not polled or otherwise interacted for a provider-defined inactivity period (RECOMMENDED: 7 days for Slow tier, 1 hour for Fast tier).
+
+On abandonment, providers:
+
+- MUST transition application status to `expired`.
+- SHOULD purge or anonymize any application data (resume URL, screening answers, candidate context) within 30 days unless retention is required by law (e.g., OFCCP record-keeping) or the candidate has explicitly opted into a candidate-facing pipeline (e.g., a talent pool).
+- MUST NOT continue to call the verifier or hold open verification sessions for an abandoned application.
+
+### Resumption ### {#identity-async-resumption}
+
+If a candidate returns to complete verification after an agent stops polling (e.g., user closes the browser, agent times out), the agent or candidate MUST initiate a new application with `begin_application`. Providers MAY choose to recognize the candidate (via prior identity verification) and pre-fill or fast-track the new application, but each application has its own `application_id`, `nonce`, and `verification_deadline`.
+
+Providers MUST NOT extend an existing `verification_deadline` retroactively — once an application is `expired`, it remains expired.
+
+### Agent Behavior on Long-Running Verifications ### {#identity-async-agent}
+
+For Slow-tier verifications, agents SHOULD:
+
+- Inform the candidate that verification will take time and the application will not complete in the same session.
+- Persist the `application_id`, `session_token`, and `verification_deadline` so the agent can resume polling later.
+- Schedule polling at the cadence above rather than blocking on the verification.
+- Notify the candidate (via the agent's own UI or notification channel) when verification completes or expires.
+
+Agents MUST NOT promise the candidate a specific completion time tighter than `estimated_completion_minutes` (or the typical range above when no estimate is provided).
+
+## Provider Claim Validation ## {#identity-claim-validation}
+
+When a provider receives a [=Verification Proof=], it MUST perform the following validation steps:
+
+1. **Structure** — Verify the `proof_token` is valid JWS compact serialization (three Base64url-encoded segments separated by `.`). Error: `invalid_structure`.
+2. **Key resolution** — Extract `kid` from the JWS header. Fetch (or use cached) JWK Set from the verifier's `public_keys_url`. Find the matching key. Error: `key_resolution_failed`.
+3. **Signature** — Validate the JWS signature using the resolved public key and declared `alg`. Error: `invalid_signature`.
+4. **Issuer** — Verify `iss` matches the expected `verifier_id`. Error: `issuer_mismatch`.
+5. **Audience** — Verify `aud` matches the provider's domain or identifier, or is `"*"`. Error: `audience_mismatch`.
+6. **Expiry** — Verify `exp` is in the future and `iat` is in the past (with clock skew tolerance per [[#identity-clock-skew]]). Error: `expired_proof`.
+7. **Nonce** — Verify `nonce` matches the expected `application_id` for this application session. Error: `nonce_mismatch`.
+8. **Type** — Verify the outer `verification_type` matches the step's required type. Error: `type_mismatch`.
+
+The complete set of verification error codes is: `invalid_structure`, `key_resolution_failed`, `invalid_signature`, `issuer_mismatch`, `audience_mismatch`, `expired_proof`, `nonce_mismatch`, `type_mismatch`, `unrecognized_verifier`, `missing_proof`.
+
+If any check fails, the provider MUST return `verification_failed` with the appropriate error code in `verification_errors`.
+
+## Multi-Verifier Example ## {#identity-multi-verifier}
+
+Jobs may require multiple verification types from different [=Identity Verifiers=]. For example, a financial compliance role might require both identity verification (Clear) and a background check (Checkr).
+
+<div class="example">
+Manifest excerpt declaring multiple verifiers:
+
+```json
+{
+  "supported_verifiers": [
+    {
+      "verifier_id": "clear",
+      "verifier_name": "Clear",
+      "verifier_manifest_url": "https://clear.me/.well-known/ojcp-verifier.json",
+      "verification_types": ["identity", "biometric"],
+      "required_for_paths": ["ats_direct"]
+    },
+    {
+      "verifier_id": "checkr",
+      "verifier_name": "Checkr",
+      "verifier_manifest_url": "https://checkr.com/.well-known/ojcp-verifier.json",
+      "verification_types": ["background_check"],
+      "required_for_paths": ["ats_direct"]
+    }
+  ]
+}
+```
+</div>
+
+<div class="example">
+A `begin_application` response with multiple verification steps — one provider-managed (Clear embedded in the apply form), one agent-submitted (Checkr sends the candidate a separate link):
+
+```json
+{
+  "ojcp_version": "0.1",
+  "application_id": "app_fin_456",
+  "status": "pending_verification",
+  "apply_path": {
+    "type": "ats_direct",
+    "url": "https://careers.globex.com/apply/ciso-2026-003",
+    "required_fields": ["resume", "email", "name"],
+    "supports_agent_submission": true,
+    "requires_verification": true,
+    "accepted_verifiers": ["clear", "checkr"]
+  },
+  "verification_steps": [
+    {
+      "step_id": "vs_1",
+      "type": "identity",
+      "verifier_id": "clear",
+      "verifier_name": "Clear",
+      "verification_url": "https://verify.clear.me/session/clear_sess_789",
+      "required": true,
+      "human_required": true,
+      "proof_delivery": "provider_managed",
+      "estimated_completion_minutes": 3,
+      "instructions": "Identity verification is embedded in the apply form. The candidate will complete a face scan within the application flow."
+    },
+    {
+      "step_id": "vs_2",
+      "type": "background_check",
+      "verifier_id": "checkr",
+      "verifier_name": "Checkr",
+      "verification_url": "https://checkr.com/verify/chk_abc123",
+      "required": true,
+      "human_required": true,
+      "proof_delivery": "agent_submitted",
+      "estimated_completion_minutes": 10,
+      "instructions": "Candidate must authorize a background check via Checkr. Open the verification URL in a browser."
+    }
+  ],
+  "session_token": "sess_globex_789",
+  "expires_at": "2026-03-20T12:00:00Z"
+}
+```
+</div>
+
+In this example, the agent handles the two steps differently:
+
+1. **Clear (provider-managed)** — The agent presents the apply form to the candidate. Clear's verification is embedded as a step in the form. The provider receives the proof directly via callback. The agent does not handle this proof.
+2. **Checkr (agent-submitted)** — The agent opens the Checkr verification URL for the candidate. After the candidate completes the background check, the agent collects the proof (via redirect or polling) and includes it in `submit_application`.
+
+When calling `submit_application`, the agent only includes proofs for `agent_submitted` steps:
+
+<div class="example">
+```json
+{
+  "application_id": "app_fin_456",
+  "session_token": "sess_globex_789",
+  "verification_proofs": [
+    {
+      "step_id": "vs_2",
+      "verifier_id": "checkr",
+      "verification_type": "background_check",
+      "proof_token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNoZWNrci1rZXktMSJ9.eyJpc3MiOiJjaGVja3IiLCJhdWQiOiJjYXJlZXJzLmdsb2JleC5jb20iLCJzdWIiOiJhMWIyYzNkNC4uLiIsImlhdCI6MTcxMDc3MjIwMCwiZXhwIjoxNzEwODU4NjAwLCJub25jZSI6ImFwcF9maW5fNDU2In0.signature",
+      "subject_hash": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+      "issued_at": "2026-03-18T14:30:00Z",
+      "expires_at": "2026-03-19T14:30:00Z"
+    }
+  ]
+}
+```
+</div>
+
+The provider validates the Checkr proof using the standard claim validation procedure ([[#identity-claim-validation]]) and confirms that Clear's provider-managed proof was already received via callback. If both are valid, the application transitions to `submitted`.
+
+# WebMCP Integration # {#webmcp}
+
+[WebMCP](https://developer.chrome.com/docs/ai/webmcp) is a proposed web standard that exposes structured tools for AI agents on existing websites. OJCP tools can be registered via either the imperative or declarative WebMCP APIs.
+
+## Imperative API ## {#webmcp-imperative}
+
+Providers MAY register OJCP tools programmatically via `navigator.modelContext.registerTool()`:
+
+<div class="example">
+```js
+if ("modelContext" in navigator) {
+  navigator.modelContext.registerTool({
+    name: "search_jobs",
+    description: "Search for open job opportunities. Pass a natural language query.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Search query, e.g. 'senior backend engineer remote'"
+        },
+        remote_ok: {
+          type: "string",
+          enum: ["true", "false"],
+          description: "Filter for remote-friendly positions"
+        }
+      },
+      required: ["query"]
+    },
+    execute: async (params) => {
+      const results = await fetchJobs(params);
+      return {
+        content: [
+          { type: "text", text: `Found ${results.total} matching roles.` },
+          { type: "json", data: results.jobs }
+        ]
+      };
+    }
+  });
+}
+```
+</div>
+
+Providers SHOULD call `navigator.modelContext.unregisterTool(name)` to remove tools when they are no longer applicable to the current page state.
+
+## Declarative API ## {#webmcp-declarative}
+
+Providers MAY annotate HTML forms as WebMCP tools using the `toolname` and `tooldescription` attributes. This is particularly relevant for [=apply paths=] where the application form already exists in the DOM:
+
+<div class="example">
+```html
+<form toolname="begin_application"
+      tooldescription="Apply for the Senior Backend Engineer role at Acme Corp"
+      action="/apply/sbe-2026-001">
+  <label for="name">Full Name</label>
+  <input type="text" name="name" required
+         toolparamdescription="Candidate's full legal name">
+
+  <label for="email">Email</label>
+  <input type="email" name="email" required>
+
+  <input type="file" name="resume" accept=".pdf,.doc,.docx"
+         toolparamdescription="Resume file (PDF or Word)">
+
+  <button type="submit">Submit Application</button>
+</form>
+```
+</div>
+
+The browser automatically translates annotated form elements into a structured tool schema that agents can interpret. When an agent invokes the tool, the browser populates the form fields and — if `toolautosubmit` is set — submits the form automatically.
+
+Providers can detect agent-initiated submissions via `SubmitEvent.agentInvoked` and return structured results using `SubmitEvent.respondWith()`:
+
+<div class="example">
+```js
+form.addEventListener("submit", (e) => {
+  if (e.agentInvoked) {
+    e.preventDefault();
+    e.respondWith(
+      submitApplication(new FormData(form)).then(result => ({
+        content: [{ type: "json", data: result }]
+      }))
+    );
+  }
+});
+```
+</div>
+
+## Conformance ## {#webmcp-conformance}
+
+WebMCP-registered tools — whether imperative or declarative — MUST conform to the same input schemas as MCP-served tools defined in [[#tools]]. The `inputSchema` for imperative tools MUST use JSON Schema format with explicit `type`, `properties`, and `required` fields.
+
+# Feed Discovery # {#discovery}
+
+## Well-Known Manifest ## {#discovery-wellknown}
+
+Any site hosting jobs MAY expose `/.well-known/ojcp.json` ([[#manifest]]). Agents and browsers SHOULD probe this endpoint to discover OJCP capabilities before attempting tool invocation.
+
+## OJCP Registry ## {#discovery-registry}
+
+A public registry at `registry.ojcp.dev` indexes verified OJCP providers. The registry exposes an MCP-compatible tool:
+
+<div class="example">
+```json
+{
+  "name": "find_ojcp_providers",
+  "description": "Find OJCP-compliant job data providers by industry, location, or employer name.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "industry": { "type": "string" },
+      "employer_name": { "type": "string" },
+      "location": { "type": "string" },
+      "has_agent_apply": { "type": "boolean" },
+      "min_trust_tier": {
+        "type": "string",
+        "enum": ["unverified", "verified", "audited"],
+        "description": "Filter results to providers at this trust tier or higher. See spec § Provider Trust."
+      }
+    }
+  }
+}
+```
+</div>
+
+**Response:** Returns `ojcp_version`, `total_results`, and a `providers` array. Each provider includes `domain`, `name`, `manifest_url`, `mcp_endpoint`, `industries`, `location`, `tools`, `apply_paths`, `has_agent_apply`, `trust_tier` ([[#trust-tiers]]), and `manifest_signed`.
+
+Registration is free and open. The registry performs basic provider verification before listing. The registration process, verification criteria, and governance model for the OJCP Registry will be defined in a separate operational document before the registry launches.
+
+Note: The `find_ojcp_providers` response includes JSON-LD `@context` and `@type` fields on provider entries to support linked-data consumers. Standard OJCP tool responses (e.g., `search_jobs`, `get_job_detail`) do not include JSON-LD context — they use plain JSON. Job postings returned by providers MAY include JSON-LD context when served as structured data on web pages.
+
+# Security and Privacy # {#security}
+
+## Transport Security ## {#security-transport}
+
+All OJCP endpoints — including `mcp_endpoint`, `feed_endpoints`, manifest URLs, and verification URLs — MUST use HTTPS. Agents MUST NOT connect to OJCP providers over plain HTTP.
+
+## Candidate Privacy ## {#security-candidate}
+
+- [=Candidate Context=] is opt-in and scoped. Agents MUST declare `consent_scope` with every tool call that includes candidate data.
+- `resume_embedding_hash` enables fit-scoring without transmitting sensitive PII.
+- Candidates MUST be able to revoke agent access tokens, immediately invalidating in-flight apply sessions.
+
+## Data Freshness ## {#security-data-freshness}
+
+Job data is inherently volatile — positions are filled, salaries change, and postings expire. Agents and providers MUST account for staleness:
+
+- **Manifests.** Agents SHOULD re-fetch `/.well-known/ojcp.json` no more than once per hour. Providers SHOULD serve manifests with `Cache-Control: max-age=3600`. Signed manifests have an explicit `signature.expires_at` which takes precedence.
+- **Search results.** Search results are ephemeral. Agents MUST NOT cache search results for more than **15 minutes**. Providers SHOULD include a `Cache-Control: max-age=900` header on search responses. Job IDs from cached search results MAY be stale — agents MUST handle `job_not_found` errors gracefully when following up with `get_job_detail`.
+- **Job detail.** Individual job postings change less frequently than search rankings. Agents MAY cache `get_job_detail` responses for up to **1 hour**. The `validThrough` field, when present, indicates the posting expiration date — agents MUST NOT present expired postings to candidates.
+- **Application sessions.** Session tokens have a RECOMMENDED TTL of 30 minutes (see [[#security-verification]]). Agents MUST NOT cache or reuse session tokens across application attempts.
+- **Provider obligation.** Providers SHOULD set appropriate HTTP cache headers (`Cache-Control`, `ETag`, `Last-Modified`) on all tool responses. When a provider cannot guarantee data freshness (e.g., upstream ATS sync delays), the response SHOULD include a `warnings` array entry with code `"stale_data"`.
+
+## Rate Limiting ## {#security-rate-limiting}
+
+Rate limits declared in the [=Job Manifest=] MUST be enforced by the provider.
+
+When a client exceeds the declared rate limit:
+
+- **REST/HTTP endpoints**: Providers MUST return HTTP `429 Too Many Requests` with a `Retry-After` header indicating the number of seconds before the client may retry.
+- **MCP transport**: Providers MUST return a JSON-RPC error with code `-32029` and include `retry_after_seconds` in the error `data` object.
+
+Agents MUST NOT retry before the indicated `Retry-After` / `retry_after_seconds` period. Agents SHOULD implement exponential backoff with jitter for subsequent retries.
+
+## Employer Controls ## {#security-employer}
+
+- Providers MAY require [=Agent Declaration=] and allowlist specific agent IDs.
+- All agent-initiated application events SHOULD be logged with agent identity and timestamp.
+- Providers MAY disable `supports_agent_submission` on any [=apply path=] at any time.
+
+## Ecosystem Integrity ## {#security-ecosystem}
+
+- The OJCP Registry MUST perform provider verification before listing.
+- Agents SHOULD include a `user_consent_token` when initiating applications. Providers MAY reject submissions without one.
+- Agent spam and fake application abuse are mitigated via [=Agent Declaration=] and provider-side rate limiting.
+
+## Identity Verification Security ## {#security-verification}
+
+- [=Verification Proofs=] MUST be JWS-signed by the [=Identity Verifier=] using a key published at the verifier's `public_keys_url` (JWK Set per [[RFC7517]]). Providers MUST validate signatures using the full claim validation procedure defined in [[#identity-claim-validation]] before accepting proofs.
+- The JWS signing algorithm MUST be one of `ES256` (RECOMMENDED), `RS256`, `ES384`, or `RS384`. Providers MUST reject proofs signed with algorithms not declared in the verifier's `signing_algorithms`.
+- [=Verification Proofs=] MUST NOT contain PII. The `subject_hash` MUST be computed as `SHA-256(canonical_subject_identifier)` and MUST NOT be reversible to the candidate's identity.
+- Providers SHOULD reject proofs older than the verifier's declared `proof_ttl_seconds`.
+- Agents MUST NOT cache [=Verification Proofs=] beyond their `expires_at` timestamp.
+- Verification URLs MUST use HTTPS and SHOULD include a session parameter that binds the verification to the specific application.
+- [=Identity Verifiers=] MUST NOT share verification data with OJCP providers beyond the signed [=Verification Proof=].
+- Providers MUST validate the `aud` claim to prevent cross-provider proof replay.
+- Providers MUST validate that the `nonce` claim matches the expected `application_id` to prevent replay attacks.
+- Error responses and `warnings` arrays MUST NOT include candidate PII. Field names are acceptable; field values are not.
+- Session tokens MUST be cryptographically random with a minimum of 256 bits of entropy. Session tokens MUST have an expiration time (RECOMMENDED 30 minutes). Providers SHOULD bind session tokens to the originating `agent_id` and reject `submit_application` calls from a different agent than the one that called `begin_application`. The `application_id` MUST NOT be sequential or predictable — providers SHOULD use UUIDv4 or equivalent.
+
+# Interoperability # {#interop}
+
+<table class="data">
+  <thead>
+    <tr><th>Standard</th><th>Relationship</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>**MCP**</td><td>OJCP tools are valid MCP tools. Any MCP client can call OJCP-compliant endpoints.</td></tr>
+    <tr><td>**WebMCP**</td><td>OJCP tools can be registered via the imperative API (`navigator.modelContext.registerTool()`) or the declarative API (`toolname`/`tooldescription` form attributes) for browser agent access.</td></tr>
+    <tr><td>**schema.org/JobPosting**</td><td>OJCP's JobPosting extends schema.org. Existing structured data remains valid.</td></tr>
+    <tr><td>**OpenAPI 3.1**</td><td>OJCP REST endpoints SHOULD be documented with OpenAPI 3.1.</td></tr>
+    <tr><td>**Indeed XML / ZipRecruiter API**</td><td>OJCP can be layered over existing feeds via adapter.</td></tr>
+  </tbody>
+</table>
+
+# Versioning # {#versioning}
+
+This specification uses semantic versioning. Breaking changes require a major version bump and a 12-month deprecation window for the previous version.
+
+The current version is **0.1** (Draft).
+
+# Conformance # {#conformance}
+
+## Conforming Provider ## {#conformance-provider}
+
+A conforming OJCP provider MUST:
+
+- Serve a valid [=Job Manifest=] at `/.well-known/ojcp.json` over HTTPS.
+- Implement the `search_jobs` tool with a conforming input and response schema.
+- Return `Content-Type: application/json` for all OJCP endpoints.
+- Enforce declared `rate_limits` and return appropriate rate-limit errors.
+
+A conforming OJCP provider SHOULD:
+
+- Implement `get_job_detail`, `get_employer_context`, `begin_application`, `submit_application`, and `check_application_status`.
+- Validate [=Verification Proofs=] per [[#identity-claim-validation]] when identity verification is required.
+
+## Conforming Agent ## {#conformance-agent}
+
+A conforming OJCP agent MUST:
+
+- Discover provider capabilities by fetching `/.well-known/ojcp.json` before invoking tools.
+- Respect `consent_scope` when transmitting [=Candidate Context=] and MUST NOT include PII fields beyond the declared scope.
+- Include an [=Agent Declaration=] when calling `begin_application` or `submit_application`.
+- Respect rate limits and honor `Retry-After` / `retry_after_seconds` values.
+
+## Schema Extensibility ## {#conformance-extensibility}
+
+OJCP schemas permit additional properties beyond those defined in this specification. This is intentional — providers and agents MAY include extension fields for forward compatibility. Implementations MUST ignore unrecognized fields rather than rejecting them.
+
+# IANA Considerations # {#iana}
+
+This specification registers two well-known URIs per [[RFC8615]]:
+
+<table class="data">
+  <thead>
+    <tr><th>URI suffix</th><th>Change controller</th><th>Specification</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`ojcp.json`</td><td>OJCP community</td><td>[[#manifest-discovery]]</td></tr>
+    <tr><td>`ojcp-verifier.json`</td><td>OJCP community</td><td>[[#identity-discovery]]</td></tr>
+  </tbody>
+</table>
+
+Registration will be submitted to IANA when this specification reaches stable status.
+
+# Open Questions # {#open-questions}
+
+1. **Form skill schema** — The `form_skill_url` field on [=apply paths=] references a companion specification for form skill descriptors. This schema — covering field mappings, validation rules, conditional logic, and submission instructions — will be defined in a separate RFC.
+2. **CandidateContext as companion spec** — Privacy sensitivity may warrant splitting [=Candidate Context=] into its own RFC track in a future version.
+3. **Agent trust model** — The identity verification extension ([[#identity-verification]]) addresses verification of *candidates* via third-party [=Identity Verifiers=]. *Agent* identity verification — cryptographic signatures on [=Agent Declarations=] — remains TBD. A future version may allow agents to sign their declarations with keys registered in the OJCP Registry, enabling providers to cryptographically verify agent identity rather than relying solely on self-declared `agent_id`.
+4. **Registry governance** — Registration process, verification criteria, provider auditing, and dispute resolution for the OJCP Registry at `registry.ojcp.dev`.
+5. **Verifier internal protocol** — OJCP defines the [=Verification Proof=] envelope (JWS format, required claims, JWKS discovery, validation procedure) and the verifier discovery convention (`/.well-known/ojcp-verifier.json`). How verifiers conduct verification internally — candidate interaction flows, biometric capture, document processing — is intentionally out of scope. A companion specification may define verifier interoperability requirements in a future version.
+
+# Acknowledgements # {#acknowledgements}
+
+The editor would like to thank the following individuals for their contributions to this specification:
+
+Todor Minakov (Recruitics),
+Wilber Acosta (Recruitics).

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ojcp.dev/schemas/v0.1/tools/check-application-status-input.json",
+  "title": "check_application_status Input",
+  "description": "Input schema for the check_application_status tool.",
+  "type": "object",
+  "properties": {
+    "application_id": {
+      "type": "string",
+      "description": "The application session ID returned by begin_application"
+    }
+  },
+  "required": ["application_id"]
+}

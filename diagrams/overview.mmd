@@ -1,0 +1,29 @@
+sequenceDiagram
+    participant C as 👤 Candidate
+    participant A as 🤖 AI Agent
+    participant P as 💼 Provider
+
+    C->>A: Find me a job
+
+    rect rgb(230, 243, 255)
+        Note over A,P: Discover
+        A->>P: What jobs do you have?
+        P-->>A: Job listings + fit scores
+    end
+
+    A-->>C: Here are your top matches
+
+    rect rgb(255, 248, 210)
+        Note over C,A: Consent
+        C->>A: Apply to this one
+    end
+
+    rect rgb(230, 255, 230)
+        Note over A,P: Apply
+        A->>P: Start application
+        P-->>A: Screening questions
+        A->>P: Submit answers + resume
+        P-->>A: Application received ✓
+    end
+
+    A-->>C: You're all set!

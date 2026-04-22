@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  validate-schemas:
+    name: Validate JSON schemas & examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install -g ajv-cli ajv-formats
+      - name: Check JSON syntax (schemas)
+        run: |
+          for f in schemas/*.json schemas/responses/*.json; do
+            echo "Checking syntax: $f"
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))"
+          done
+      - name: Check JSON syntax (examples)
+        run: |
+          for f in examples/*.json; do
+            echo "Checking syntax: $f"
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))"
+          done
+      - name: Validate examples against schemas
+        run: |
+          echo "Validating examples/manifest.json"
+          ajv validate -s schemas/manifest.json -d examples/manifest.json --spec=draft2020 -c ajv-formats
+          echo "Validating examples/job-posting.json"
+          ajv validate -s schemas/job-posting.json -d examples/job-posting.json --spec=draft2020 -c ajv-formats
+          echo "Validating examples/search-response.json"
+          ajv validate -s schemas/responses/search-jobs.json -d examples/responses/search-response.json --spec=draft2020 -c ajv-formats
+
+  build-spec:
+    name: Build Bikeshed spec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install --no-cache-dir bikeshed && bikeshed update
+      - run: bikeshed spec spec/ojcp-v0.1.bs spec/ojcp-v0.1.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spec-html
+          path: spec/ojcp-v0.1.html
+          retention-days: 30
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: build-spec
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install --no-cache-dir bikeshed && bikeshed update
+      - name: Build and prepare pages
+        run: |
+          bikeshed spec spec/ojcp-v0.1.bs spec/ojcp-v0.1.html
+          mkdir -p _site/0.1
+          cp spec/ojcp-v0.1.html _site/0.1/index.html
+          echo '<meta http-equiv="refresh" content="0;url=/0.1/">' > _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

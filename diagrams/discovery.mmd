@@ -1,0 +1,24 @@
+sequenceDiagram
+    participant A as AI Agent
+    participant R as OJCP Registry
+    participant P as Provider
+    participant M as MCP Server
+
+    Note over A,M: Discovery
+
+    A->>R: find_ojcp_providers(industry)
+    R-->>A: provider list
+
+    A->>P: GET /.well-known/ojcp.json
+    P-->>A: manifest
+
+    A->>M: MCP initialize
+    M-->>A: tools/list
+
+    Note over A,M: Search
+
+    A->>M: search_jobs(query, candidate)
+    M-->>A: JobPosting[] + fit_score
+
+    A->>M: get_job_detail(job_id)
+    M-->>A: full JobPosting

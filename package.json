@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "name": "ojcp",
+  "description": "Open Job Context Protocol — build tooling",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ojcp.dev/schemas/v0.1/verification-proof.json",
+  "title": "OJCP Verification Proof",
+  "description": "A cryptographic proof of identity verification issued by a verifier. Contains no PII. The proof_token is a JWS (RFC 7515) whose payload MUST include iss, aud, sub, iat, exp, and nonce claims.",
+  "type": "object",
+  "required": ["step_id", "verifier_id", "verification_type", "proof_token", "subject_hash", "issued_at", "expires_at"],
+  "properties": {
+    "step_id": {
+      "type": "string",
+      "description": "The verification step this proof satisfies."
+    },
+    "verifier_id": {
+      "type": "string",
+      "description": "Identifier of the verifier that issued this proof. MUST match the 'iss' claim in the proof_token."
+    },
+    "verification_type": {
+      "type": "string",
+      "enum": ["identity", "government_id", "biometric", "address", "employment", "education", "background_check"],
+      "description": "The type of verification that was performed."
+    },
+    "proof_token": {
+      "type": "string",
+      "description": "The signed proof artifact — a JWS (RFC 7515) compact serialization. The JWS header MUST include 'alg' and 'kid'. The payload MUST include: 'iss' (verifier_id), 'aud' (provider domain or '*'), 'sub' (subject_hash), 'iat', 'exp', and 'nonce' (application_id). Providers validate the signature against the verifier's JWKS endpoint."
+    },
+    "subject_hash": {
+      "type": "string",
+      "description": "SHA-256 hex digest of the verifier's canonical subject identifier. Not reversible to PII. MUST match the 'sub' claim in the proof_token."
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the proof was issued. MUST represent the same instant in time as the 'iat' NumericDate claim in the proof_token."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the proof expires. MUST represent the same instant in time as the 'exp' NumericDate claim in the proof_token."
+    }
+  }
+}

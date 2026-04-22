@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ojcp.dev/schemas/v0.1/responses/begin-application.json",
+  "title": "OJCP begin_application Response",
+  "description": "Response schema for the begin_application tool.",
+  "type": "object",
+  "required": ["ojcp_version", "application_id", "status", "apply_path"],
+  "properties": {
+    "ojcp_version": {
+      "type": "string",
+      "description": "The OJCP specification version."
+    },
+    "application_id": {
+      "type": "string",
+      "description": "Unique identifier for this application session. Use with check_application_status."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["initiated", "pending_submission", "pending_verification"],
+      "description": "Current status of the application session."
+    },
+    "apply_path": {
+      "type": "object",
+      "required": ["type", "supports_agent_submission"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "The selected apply path type."
+        },
+        "product_name": {
+          "type": "string",
+          "description": "Vendor product name for this apply path (e.g., 'Indeed Apply', 'Easy Apply'). Informational only."
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for the application entry point."
+        },
+        "required_fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Fields required to complete the application."
+        },
+        "optional_fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional fields that can strengthen the application."
+        },
+        "estimated_completion_minutes": {
+          "type": "integer",
+          "description": "Estimated time to complete."
+        },
+        "supports_agent_submission": {
+          "type": "boolean",
+          "description": "Whether this path supports autonomous agent submission."
+        },
+        "requires_verification": {
+          "type": "boolean",
+          "description": "Whether identity verification is required before submission via this path."
+        },
+        "accepted_verifiers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Identity verifier identifiers accepted for this apply path."
+        }
+      },
+      "description": "The apply path descriptor for this application."
+    },
+    "session_token": {
+      "type": "string",
+      "description": "Opaque token for multi-step apply flows. Include in subsequent requests."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when this application session expires."
+    },
+    "screening_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["question_id", "question_text", "answer_type"],
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "description": "Unique identifier for this question."
+          },
+          "question_text": {
+            "type": "string",
+            "description": "The question to present to the candidate."
+          },
+          "answer_type": {
+            "type": "string",
+            "enum": ["text", "boolean", "single_select", "multi_select", "number", "date"],
+            "description": "Expected answer format."
+          },
+          "options": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Available options for single_select or multi_select questions."
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this question must be answered."
+          },
+          "min_length": {
+            "type": "integer",
+            "description": "Minimum character length for text answers."
+          },
+          "max_length": {
+            "type": "integer",
+            "description": "Maximum character length for text answers."
+          },
+          "pattern": {
+            "type": "string",
+            "description": "Regular expression the answer must match (e.g., '\\d{5}' for ZIP codes)."
+          },
+          "min": {
+            "type": "number",
+            "description": "Minimum value for number or date answers."
+          },
+          "max": {
+            "type": "number",
+            "description": "Maximum value for number or date answers."
+          }
+        }
+      },
+      "description": "Screening questions the candidate must answer as part of the application. The agent should collect answers and include them in submit_application's application_data."
+    },
+    "verification_steps": {
+      "type": "array",
+      "items": { "$ref": "https://ojcp.dev/schemas/v0.1/verification-step.json" },
+      "description": "Identity verification steps required before the application can proceed. Present only when status is 'pending_verification'."
+    },
+    "verification_deadline": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp after which incomplete verifications cause the application to expire. Default: 24 hours from begin_application for fast-tier verifications, 14 days when any slow-tier verification (employment, education, background_check) is required. See spec § Asynchronous Verification."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": ["fields_ignored", "scope_exceeded", "deprecated_field", "stale_data"],
+            "description": "Warning code."
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable warning message."
+          },
+          "fields": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Field names that triggered the warning."
+          }
+        }
+      },
+      "description": "Non-fatal warnings about the request. Providers SHOULD include a warning when fields are silently ignored due to consent_scope restrictions."
+    }
+  }
+}

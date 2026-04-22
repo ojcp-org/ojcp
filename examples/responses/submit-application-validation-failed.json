@@ -1,0 +1,18 @@
+{
+  "ojcp_version": "0.1",
+  "application_id": "app_abc123",
+  "status": "validation_failed",
+  "message": "Screening question answers failed validation. Fix the answers and resubmit.",
+  "screening_errors": [
+    {
+      "question_id": "aml_experience",
+      "error": "out_of_range",
+      "message": "Answer 100 exceeds maximum 50."
+    },
+    {
+      "question_id": "work_auth",
+      "error": "required_missing",
+      "message": "Required question 'work_auth' is missing an answer."
+    }
+  ]
+}

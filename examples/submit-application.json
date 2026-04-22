@@ -1,0 +1,19 @@
+{
+  "_comment": "MCP tool call: submit_application — with verification proofs",
+  "name": "submit_application",
+  "arguments": {
+    "application_id": "app_abc123",
+    "session_token": "sess_def456",
+    "verification_proofs": [
+      {
+        "step_id": "vs_1",
+        "verifier_id": "id.me",
+        "verification_type": "identity",
+        "proof_token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImlkLm1lLWtleS0xIn0.eyJpc3MiOiJpZC5tZSIsImF1ZCI6ImNhcmVlcnMuYWNtZS5jb20iLCJzdWIiOiJhMWIyYzNkNGU1ZjZhN2I4YzlkMGUxZjJhM2I0YzVkNmU3ZjhhOWIwYzFkMmUzZjRhNWI2YzdkOGU5ZjBhMWIyIiwiaWF0IjoxNzEwNzcyMjAwLCJleHAiOjE3MTA4NTg2MDAsIm5vbmNlIjoiYXBwX2FiYzEyMyJ9.mock_signature",
+        "subject_hash": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+        "issued_at": "2026-03-18T14:30:00Z",
+        "expires_at": "2026-03-19T14:30:00Z"
+      }
+    ]
+  }
+}

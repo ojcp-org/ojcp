@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ojcp.dev/schemas/v0.1/responses/application-status.json",
+  "title": "OJCP check_application_status Response",
+  "description": "Response schema for the check_application_status tool.",
+  "type": "object",
+  "required": ["ojcp_version", "application_id", "status", "updated_at"],
+  "properties": {
+    "ojcp_version": {
+      "type": "string",
+      "description": "The OJCP specification version."
+    },
+    "application_id": {
+      "type": "string",
+      "description": "The application session identifier."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["initiated", "pending_submission", "pending_verification", "submitted", "verification_failed", "validation_failed", "expired", "rejected", "received", "reviewing", "interview_scheduled", "offer_extended", "withdrawn"],
+      "description": "Current application status."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of the last status change."
+    },
+    "next_steps": {
+      "type": "string",
+      "description": "Human-readable description of what happens next."
+    },
+    "estimated_response_days": {
+      "type": "integer",
+      "description": "Estimated number of business days until the next status update."
+    },
+    "verification_status": {
+      "type": "object",
+      "properties": {
+        "steps_total": { "type": "integer", "description": "Total number of verification steps." },
+        "steps_completed": { "type": "integer", "description": "Number of completed verification steps." },
+        "pending_steps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Step IDs that are still pending."
+        },
+        "completed_steps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Step IDs that have been completed."
+        }
+      },
+      "description": "Progress of identity verification steps. Present when status is 'pending_verification'."
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "ojcp_version": "0.1",
+  "application_id": "app_abc123",
+  "status": "verification_failed",
+  "message": "One or more verification proofs failed validation.",
+  "verification_errors": [
+    {
+      "step_id": "vs_1",
+      "error": "nonce_mismatch",
+      "message": "Proof nonce 'wrong_nonce' does not match application_id 'app_abc123'."
+    }
+  ]
+}

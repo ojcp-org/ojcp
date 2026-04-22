@@ -1,0 +1,22 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Node (if tooling is added later)
+node_modules/
+package-lock.json
+
+# Bikeshed output
+*.html
+!examples/*.html
+
+# Build artifacts
+dist/
+build/

@@ -1,0 +1,11 @@
+# OJCP Spec — Code Owners
+# Approval required from at least one owner for PRs touching these paths.
+
+# Everything by default
+* @austinanderson
+
+# Spec and schemas require editor review
+spec/ @austinanderson
+schemas/ @austinanderson
+examples/ @austinanderson
+docs/ @austinanderson

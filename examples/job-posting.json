@@ -1,0 +1,56 @@
+{
+  "@context": ["https://schema.org", "https://ojcp.dev/context/v1"],
+  "@type": "JobPosting",
+  "ojcp_id": "careers.acme.com:swe-42091",
+  "title": "Senior Software Engineer, Platform",
+  "employer": {
+    "@type": "Organization",
+    "name": "Acme Corp",
+    "ojcp_employer_id": "acme-corp"
+  },
+  "datePosted": "2026-02-28",
+  "validThrough": "2026-04-15",
+  "employmentType": "full_time",
+  "jobLocation": {
+    "@type": "Place",
+    "address": {
+      "addressLocality": "Chicago",
+      "addressRegion": "IL"
+    }
+  },
+  "baseSalary": {
+    "@type": "MonetaryAmountDistribution",
+    "currency": "USD",
+    "minValue": 140000,
+    "maxValue": 185000,
+    "unitText": "YEAR"
+  },
+  "description": "We're looking for a Senior Software Engineer to join our Platform team. You'll design and build the core infrastructure that powers Acme's manufacturing intelligence platform, working with distributed systems at scale.",
+  "skills_required": ["Go", "Kubernetes", "distributed systems"],
+  "skills_preferred": ["Rust", "eBPF"],
+  "team_context": "Platform team of 12 engineers; reports to VP Engineering.",
+  "urgency": "high",
+  "application_volume_signal": "moderate",
+  "requisition_id": "R42091",
+  "department": "Engineering — Platform",
+  "hiring_manager": "Sarah Kim",
+  "remote_policy": "hybrid",
+  "apply_paths": [
+    {
+      "type": "provider_hosted",
+      "url": "https://careers.acme.com/apply/swe-42091",
+      "estimated_completion_minutes": 8,
+      "required_fields": ["resume", "work_authorization"],
+      "optional_fields": ["cover_letter", "portfolio_url"],
+      "supports_agent_submission": true
+    },
+    {
+      "type": "ats_direct",
+      "ats_provider": "Workday",
+      "url": "https://acme.wd1.myworkdayjobs.com/careers/job/Chicago/Senior-Software-Engineer_R42091",
+      "supports_agent_submission": true,
+      "form_skill_url": "https://careers.acme.com/ojcp/skills/workday-swe-42091.json"
+    }
+  ],
+  "agent_notes": "This role is part of an urgent Q2 headcount. Applications reviewed within 48 hours. Recruiter: Sarah Kim."
+}

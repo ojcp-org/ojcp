@@ -1,0 +1,106 @@
+{
+  "ojcp_version": "0.1",
+  "query": "senior backend engineer remote",
+  "total_results": 47,
+  "returned": 3,
+  "offset": 0,
+  "jobs": [
+    {
+      "ojcp_id": "careers.acme.com:swe-42091",
+      "title": "Senior Software Engineer, Platform",
+      "employer": {
+        "name": "Acme Corp",
+        "ojcp_employer_id": "acme-corp"
+      },
+      "datePosted": "2026-02-28",
+      "employmentType": "full_time",
+      "jobLocation": {
+        "address": {
+          "addressLocality": "Chicago",
+          "addressRegion": "IL"
+        }
+      },
+      "baseSalary": {
+        "currency": "USD",
+        "minValue": 140000,
+        "maxValue": 185000,
+        "unitText": "YEAR"
+      },
+      "skills_required": ["Go", "Kubernetes", "distributed systems"],
+      "urgency": "high",
+      "apply_paths": [
+        {
+          "type": "provider_hosted",
+          "supports_agent_submission": true
+        }
+      ],
+      "fit_score": 0.87,
+      "fit_rationale": "Strong match on distributed systems and backend experience. Go experience aligns well. Location preference compatible with hybrid option."
+    },
+    {
+      "ojcp_id": "jobs.globex.com:be-10455",
+      "title": "Backend Engineer III",
+      "employer": {
+        "name": "Globex Corporation",
+        "ojcp_employer_id": "globex-corp"
+      },
+      "datePosted": "2026-03-01",
+      "employmentType": "full_time",
+      "jobLocation": {
+        "address": {
+          "addressLocality": "Remote",
+          "addressCountry": "US"
+        }
+      },
+      "baseSalary": {
+        "currency": "USD",
+        "minValue": 155000,
+        "maxValue": 195000,
+        "unitText": "YEAR"
+      },
+      "skills_required": ["Python", "PostgreSQL", "AWS"],
+      "urgency": "moderate",
+      "apply_paths": [
+        {
+          "type": "provider_hosted",
+          "supports_agent_submission": true
+        }
+      ],
+      "fit_score": 0.82,
+      "fit_rationale": "Python and SQL skills match. Fully remote aligns with location preference. Salary range meets expectations."
+    },
+    {
+      "ojcp_id": "careers.initech.com:sr-7823",
+      "title": "Senior Engineer, Core Infrastructure",
+      "employer": {
+        "name": "Initech",
+        "ojcp_employer_id": "initech"
+      },
+      "datePosted": "2026-02-25",
+      "employmentType": "full_time",
+      "jobLocation": {
+        "address": {
+          "addressLocality": "Austin",
+          "addressRegion": "TX"
+        }
+      },
+      "baseSalary": {
+        "currency": "USD",
+        "minValue": 130000,
+        "maxValue": 170000,
+        "unitText": "YEAR"
+      },
+      "skills_required": ["Java", "Kafka", "microservices"],
+      "urgency": "low",
+      "apply_paths": [
+        {
+          "type": "ats_direct",
+          "ats_provider": "Greenhouse",
+          "supports_agent_submission": false
+        }
+      ],
+      "fit_score": 0.71,
+      "fit_rationale": "Microservices experience aligns. Java not listed but transferable from backend background. Salary range slightly below expectation."
+    }
+  ]
+}

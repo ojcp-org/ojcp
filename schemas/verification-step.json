@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ojcp.dev/schemas/v0.1/verification-step.json",
+  "title": "OJCP Verification Step",
+  "description": "A discrete identity verification action required before an application can proceed.",
+  "type": "object",
+  "required": ["step_id", "type", "verifier_id", "verification_url", "human_required"],
+  "properties": {
+    "step_id": {
+      "type": "string",
+      "description": "Unique identifier for this verification step within the application session."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["identity", "government_id", "biometric", "address", "employment", "education", "background_check"],
+      "description": "The type of verification required."
+    },
+    "verifier_id": {
+      "type": "string",
+      "description": "Identifier of the identity verification provider (e.g., 'id.me', 'clear')."
+    },
+    "verifier_name": {
+      "type": "string",
+      "description": "Human-readable name of the verifier."
+    },
+    "verification_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL the candidate must visit to complete verification. Agents should open this in a browser."
+    },
+    "required": {
+      "type": "boolean",
+      "description": "Whether this step must be completed before the application can proceed."
+    },
+    "human_required": {
+      "type": "boolean",
+      "description": "Whether this step requires human interaction (e.g., face scan, document upload). When true, the agent must hand off to the human."
+    },
+    "estimated_completion_minutes": {
+      "type": "integer",
+      "description": "Estimated time in minutes for the candidate to complete this step."
+    },
+    "instructions": {
+      "type": "string",
+      "description": "Human-readable instructions for the agent to relay to the candidate."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when this verification step's URL expires."
+    },
+    "proof_delivery": {
+      "type": "string",
+      "enum": ["provider_managed", "agent_submitted"],
+      "default": "agent_submitted",
+      "description": "How the verification proof is delivered after the candidate completes verification. 'provider_managed': the provider collects the proof directly from the verifier via server callback or embedded iframe — the agent does not need to submit proofs. 'agent_submitted': the agent must collect the proof and include it in submit_application. Defaults to 'agent_submitted' if omitted."
+    }
+  }
+}

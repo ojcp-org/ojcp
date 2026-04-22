@@ -1,0 +1,31 @@
+sequenceDiagram
+    participant C as Candidate
+    participant A as AI Agent
+    participant P as OJCP Provider
+    participant ATS as ATS
+
+    C->>A: Apply to this role + resume
+
+    A->>P: get_job_detail(job_id)
+    P-->>A: JobPosting + apply_paths[]
+
+    rect rgb(255, 248, 210)
+        Note over C,A: Consent Gate
+        A-->>C: Confirm application?
+        C->>A: Confirmed
+    end
+
+    A->>P: begin_application(job_id, candidate, agent)
+    P-->>A: status: pending_submission<br/>+ screening_questions[]
+
+    Note over A,C: Agent fills screening answers<br/>from candidate context
+
+    A->>P: submit_application(app_id, session_token,<br/>application_data{answers, resume_url})
+
+    P->>ATS: POST application
+    ATS-->>P: application_id
+
+    P-->>A: status: submitted
+    A-->>C: Application submitted ✓
+
+    Note over P,ATS: If ats_direct or external_redirect:<br/>agent returns URL,<br/>candidate completes manually.

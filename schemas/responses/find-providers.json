@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ojcp.dev/schemas/v0.1/responses/find-providers.json",
+  "title": "OJCP find_ojcp_providers Response",
+  "description": "Response schema for the find_ojcp_providers registry tool.",
+  "type": "object",
+  "required": ["ojcp_version", "total_results", "providers"],
+  "properties": {
+    "ojcp_version": {
+      "type": "string",
+      "description": "The OJCP specification version."
+    },
+    "total_results": {
+      "type": "integer",
+      "description": "Total number of matching providers."
+    },
+    "providers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["domain", "name", "manifest_url", "tools", "verified"],
+        "properties": {
+          "@context": {
+            "type": "string",
+            "const": "https://ojcp.dev/context/v1",
+            "description": "JSON-LD context URI for OJCP."
+          },
+          "@type": {
+            "type": "string",
+            "const": "OJCPProvider",
+            "description": "JSON-LD type for an OJCP provider entry."
+          },
+          "domain": {
+            "type": "string",
+            "description": "The provider's domain (e.g., careers.acme.com)."
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable provider name."
+          },
+          "description": {
+            "type": "string",
+            "description": "Brief description of the provider."
+          },
+          "manifest_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to the provider's /.well-known/ojcp.json manifest."
+          },
+          "mcp_endpoint": {
+            "type": "string",
+            "format": "uri",
+            "description": "MCP endpoint for tool invocation."
+          },
+          "industries": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Industries the provider covers."
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "city": { "type": "string" },
+              "state": { "type": "string" },
+              "country": { "type": "string" }
+            },
+            "description": "Provider headquarters or primary location."
+          },
+          "tools": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "OJCP tools supported by this provider."
+          },
+          "apply_paths": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Apply path types supported."
+          },
+          "has_agent_apply": {
+            "type": "boolean",
+            "description": "Whether any apply path supports autonomous agent submission."
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Whether the provider has been verified by the registry. Deprecated alias for trust_tier !== 'unverified' — prefer trust_tier."
+          },
+          "verified_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of last verification."
+          },
+          "trust_tier": {
+            "type": "string",
+            "enum": ["unverified", "verified", "audited"],
+            "description": "Registry-assigned trust tier. 'unverified': basic format checks only. 'verified': signed manifest validates plus registry has confirmed employer identity. 'audited': verified plus conformance suite passes plus security review. See spec § Provider Trust."
+          },
+          "manifest_signed": {
+            "type": "boolean",
+            "description": "Whether the provider's manifest carries a valid cryptographic signature."
+          }
+        }
+      },
+      "description": "Array of matching providers."
+    }
+  }
+}

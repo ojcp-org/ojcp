@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ojcp.dev/schemas/v0.1/agent-declaration.json",
+  "title": "OJCP AgentDeclaration",
+  "description": "Schema for agent self-identification when initiating applications. Enables employer audit trails, rate limiting, and abuse prevention.",
+  "type": "object",
+  "required": ["agent_id", "acting_on_behalf_of"],
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "description": "Reverse-domain-notation identifier for the agent (e.g., com.apple.intelligence.jobseeker)."
+    },
+    "agent_version": {
+      "type": "string",
+      "description": "Version string of the agent software."
+    },
+    "acting_on_behalf_of": {
+      "type": "string",
+      "enum": ["human_user", "recruiter", "autonomous_workflow"],
+      "description": "Who the agent is acting on behalf of."
+    },
+    "user_consent_token": {
+      "type": "string",
+      "description": "Optional token representing user or operator authorization. For 'autonomous' interaction modes, this represents the operator's authorization rather than per-action user consent. Token format and verification are provider-defined."
+    },
+    "interaction_mode": {
+      "type": "string",
+      "enum": ["assisted", "autonomous", "supervised"],
+      "description": "How the agent interacts with the user during the apply flow. 'assisted' = user confirms key steps, 'autonomous' = fully hands-off, 'supervised' = user monitors but does not intervene."
+    }
+  }
+}

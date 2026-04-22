@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ojcp.dev/schemas/v0.1/tools/submit-application-input.json",
+  "title": "submit_application Input",
+  "description": "Input schema for the submit_application tool.",
+  "type": "object",
+  "properties": {
+    "application_id": {
+      "type": "string",
+      "description": "Application ID from begin_application"
+    },
+    "session_token": {
+      "type": "string",
+      "description": "Session token from begin_application"
+    },
+    "application_data": {
+      "type": "object",
+      "description": "Application payload — screening question answers, cover letter, resume reference, and any custom fields.",
+      "properties": {
+        "answers": {
+          "type": "object",
+          "description": "Screening question answers keyed by question_id.",
+          "additionalProperties": true
+        },
+        "cover_letter": { "type": "string", "description": "Cover letter text." },
+        "resume_url": { "type": "string", "format": "uri", "description": "URL to the candidate's resume document." },
+        "eeo": {
+          "$ref": "https://ojcp.dev/schemas/v0.1/eeo-data.json",
+          "description": "Voluntary EEO self-identification data. Only include when the candidate has explicitly chosen to disclose."
+        },
+        "custom_fields": {
+          "type": "object",
+          "description": "Additional ATS-specific fields.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "candidate_context": { "$ref": "https://ojcp.dev/schemas/v0.1/candidate-context.json" },
+    "verification_proofs": {
+      "type": "array",
+      "items": { "$ref": "https://ojcp.dev/schemas/v0.1/verification-proof.json" },
+      "description": "Cryptographic proofs from completed verification steps"
+    },
+    "agent_declaration": { "$ref": "https://ojcp.dev/schemas/v0.1/agent-declaration.json" },
+    "source_attribution": {
+      "type": "object",
+      "properties": {
+        "referrer": { "type": "string" },
+        "reference_id": { "type": "string" }
+      }
+    }
+  },
+  "required": ["application_id", "session_token"]
+}
