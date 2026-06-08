@@ -75,7 +75,7 @@ That experience informs this proposal, but the standard must be shaped by the br
 
 1. **Agent-native, not human-last.** OJCP is designed first for LLM tool-use. Human readability is a secondary concern.
 2. **MCP-interoperable.** Job Tools exposed via OJCP should be callable by any MCP-compatible agent with no translation layer.
-3. **WebMCP-compatible.** For browser-native agents (Apple Intelligence, browser assistants), OJCP tools can be registered via `navigator.modelContext` (imperative API) or annotated in HTML forms (declarative API).
+3. **WebMCP-compatible.** For browser-native agents (Apple Intelligence, browser assistants), OJCP tools can be registered via `document.modelContext` (imperative API) or annotated in HTML forms (declarative API).
 4. **Schema.org backward-compatible.** Existing `JobPosting` schema.org markup is preserved and extended, not replaced.
 5. **Privacy-preserving.** Candidate context passed to Job Tools must be explicitly consented to and minimized by default. Identity verification proofs carry no PII — only cryptographic attestations.
 6. **Employer-controlled.** Employers retain the ability to restrict, rate-limit, audit agent interactions, and require identity verification on any apply path.
@@ -274,7 +274,7 @@ As AI agents begin submitting applications on behalf of candidates, employers in
 
 For browser-native agents, providers can register OJCP tools via two complementary WebMCP APIs:
 
-**Imperative API** — Register tools programmatically via `navigator.modelContext.registerTool()`. Providers should unregister tools when they are no longer applicable to the current page.
+**Imperative API** — Register tools programmatically via `document.modelContext.registerTool()`. Providers should unregister tools when they are no longer applicable to the current page.
 
 **Declarative API** — Annotate HTML forms with `toolname`, `tooldescription`, and `toolparamdescription` attributes. The browser translates annotated forms into structured tools. Providers detect agent submissions via `SubmitEvent.agentInvoked` and return structured results via `SubmitEvent.respondWith()`.
 
@@ -323,7 +323,7 @@ This enables job boards and aggregators to track referral value without baking a
 | Standard | Relationship |
 |---|---|
 | **MCP (Model Context Protocol)** | OJCP tools are valid MCP tools. Any MCP client can call OJCP-compliant endpoints. |
-| **WebMCP** | OJCP tools can be registered via the imperative API (`navigator.modelContext.registerTool()`) or the declarative API (`toolname`/`tooldescription` form attributes) for browser agent access. |
+| **WebMCP** | OJCP tools can be registered via the imperative API (`document.modelContext.registerTool()`) or the declarative API (`toolname`/`tooldescription` form attributes) for browser agent access. |
 | **schema.org/JobPosting** | OJCP's `JobPosting` extends schema.org. Existing structured data remains valid; OJCP adds agent-specific fields. |
 | **JSON Feed / RSS** | OJCP is not a syndication format — it is an action-oriented, tool-native interface. Legacy feeds remain complementary for SEO. |
 | **Indeed XML Feed / ZipRecruiter API** | OJCP can be layered over existing job board APIs via an adapter. No replacement required. |

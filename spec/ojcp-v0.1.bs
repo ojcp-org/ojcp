@@ -1547,12 +1547,12 @@ The provider validates the Checkr proof using the standard claim validation proc
 
 ## Imperative API ## {#webmcp-imperative}
 
-Providers MAY register OJCP tools programmatically via `navigator.modelContext.registerTool()`:
+Providers MAY register OJCP tools programmatically via `document.modelContext.registerTool()`:
 
 <div class="example">
 ```js
-if ("modelContext" in navigator) {
-  navigator.modelContext.registerTool({
+if ("modelContext" in document) {
+  document.modelContext.registerTool({
     name: "search_jobs",
     description: "Search for open job opportunities. Pass a natural language query.",
     inputSchema: {
@@ -1584,7 +1584,11 @@ if ("modelContext" in navigator) {
 ```
 </div>
 
-Providers SHOULD call `navigator.modelContext.unregisterTool(name)` to remove tools when they are no longer applicable to the current page state.
+Providers SHOULD call `document.modelContext.unregisterTool(name)` to remove tools when they are no longer applicable to the current page state.
+
+<div class="note">
+The `modelContext` namespace is scoped to the active [=document=]. Earlier WebMCP drafts exposed it on `navigator`; following [WebML CG](https://www.w3.org/community/webmachinelearning/) guidance ([webmcp#173](https://github.com/webmachinelearning/webmcp/issues/173)), it now lives on `document` so that registered tools are not inadvertently shared across same-`Window` navigations. As of this writing the move is reflected in the WebMCP draft but not yet shipped in Chromium ([crbug 515330187](https://issues.chromium.org/issues/515330187)); implementers targeting current Chromium builds should feature-detect both locations during the transition.
+</div>
 
 ## Declarative API ## {#webmcp-declarative}
 
@@ -1739,7 +1743,7 @@ Agents MUST NOT retry before the indicated `Retry-After` / `retry_after_seconds`
   </thead>
   <tbody>
     <tr><td>**MCP**</td><td>OJCP tools are valid MCP tools. Any MCP client can call OJCP-compliant endpoints.</td></tr>
-    <tr><td>**WebMCP**</td><td>OJCP tools can be registered via the imperative API (`navigator.modelContext.registerTool()`) or the declarative API (`toolname`/`tooldescription` form attributes) for browser agent access.</td></tr>
+    <tr><td>**WebMCP**</td><td>OJCP tools can be registered via the imperative API (`document.modelContext.registerTool()`) or the declarative API (`toolname`/`tooldescription` form attributes) for browser agent access.</td></tr>
     <tr><td>**schema.org/JobPosting**</td><td>OJCP's JobPosting extends schema.org. Existing structured data remains valid.</td></tr>
     <tr><td>**OpenAPI 3.1**</td><td>OJCP REST endpoints SHOULD be documented with OpenAPI 3.1.</td></tr>
     <tr><td>**Indeed XML / ZipRecruiter API**</td><td>OJCP can be layered over existing feeds via adapter.</td></tr>
