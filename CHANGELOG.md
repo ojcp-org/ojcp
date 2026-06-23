@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CONTRIBUTING.md` — DCO sign-off now distinguishes between CC BY 4.0 (spec/schemas/examples/docs) and Apache 2.0 (code/tooling/CI) contributions
 - `CONTRIBUTING.md` — corrected GitHub→GitHub and Pull Request→Pull Request terminology
 - `.github/ISSUE_TEMPLATE/rfc-proposal.md` — added comment-period and resolution tracking fields
+- WebMCP imperative API — `navigator.modelContext` → `document.modelContext` across spec, README, and proposal, tracking the WebML CG decision to scope tools to the active `Document` ([webmcp#173](https://github.com/webmachinelearning/webmcp/issues/173), [crbug 515330187](https://issues.chromium.org/issues/515330187))
 
 ## [0.1] - 2026-03-06
 

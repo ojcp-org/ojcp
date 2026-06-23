@@ -102,8 +102,8 @@ OJCP supports [WebMCP](https://developer.chrome.com/docs/ai/webmcp) (Chrome 146+
 **Imperative API** — Register OJCP tools directly on your careers page:
 
 ```js
-if ("modelContext" in navigator) {
-  navigator.modelContext.registerTool({
+if ("modelContext" in document) {
+  document.modelContext.registerTool({
     name: "search_jobs",
     description: "Search open roles at Acme Corp.",
     inputSchema: {
@@ -194,7 +194,7 @@ When the agent applies on behalf of a candidate, OJCP enforces a consent gate be
 | Standard | Relationship |
 |---|---|
 | MCP | OJCP tools are valid MCP tools — callable by any MCP client |
-| WebMCP | Imperative API (`navigator.modelContext.registerTool()`) and declarative API (form `toolname`/`tooldescription` attributes) |
+| WebMCP | Imperative API (`document.modelContext.registerTool()`) and declarative API (form `toolname`/`tooldescription` attributes) |
 | schema.org/JobPosting | OJCP extends it; existing structured data stays valid |
 | OpenAPI 3.1 | REST endpoints documented in OpenAPI; registry validates conformance |
 | Indeed / Zip XML Feeds | OJCP layers over existing feeds via adapter; no replacement required |
