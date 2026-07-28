@@ -7,7 +7,7 @@ labels: rfc
 ## RFC: Verifiable agent identity via HTTP Message Signatures (RFC 9421)
 
 - **Authors:** Austin Anderson, Recruitics
-- **Status:** Draft
+- **Status:** Accepted
 - **Created:** 2026-06-23
 - **Resolves:** [Open Question #3](https://spec.ojcp.dev/0.1/#open-questions) (Agent trust model — cryptographic agent identity)
 
@@ -313,8 +313,8 @@ today's behavior (unauthenticated, anonymous-tier results). Existing flows are u
 
 - **Comment period opens:** 2026-06-23
 - **Comment period closes:** 2026-07-23 (30 days)
-- **Resolution:** <!-- Accepted / Revisions requested / Declined / Withdrawn -->
-- **Decision record:** <!-- will update the decision link via docs/decisions/NNNN-*.md -->
+- **Resolution:** Accepted (2026-07-23, close of the 30-day comment period).
+- **Decision record:** [docs/decisions/0001-agent-identity.md](../decisions/0001-agent-identity.md)
 
 <!-- References:
 [[RFC9421]] HTTP Message Signatures
