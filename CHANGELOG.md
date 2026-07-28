@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Agent Identity (RFC 0001 implementation)** — new normative "Agent Identity" section in `spec/ojcp-v0.1.bs` defining verifiable `agent_id` via RFC 9421 HTTP Message Signatures (Web Bot Auth wire profile: JWKS directory, `Signature-Agent` header, Ed25519, PSL-based origin binding, replay/expiry rules, new signature error codes, and platform-attestation + user-mandate delegation for personal agents)
+- `schemas/manifest.json` — added `auth.agent_signatures` (supported / algorithms / required_for)
+- `schemas/agent-declaration.json` — added optional `user_mandate` (user-rooted authorization; schema TBD by the consent RFC)
+- `examples/agent-signed-request.http` — worked signed-request example
 - `CONTRIBUTING.md` — DCO sign-off now distinguishes between CC BY 4.0 (spec/schemas/examples/docs) and Apache 2.0 (code/tooling/CI) contributions
 - `CONTRIBUTING.md` — corrected GitHub→GitHub and Pull Request→Pull Request terminology
 - `.github/ISSUE_TEMPLATE/rfc-proposal.md` — added comment-period and resolution tracking fields

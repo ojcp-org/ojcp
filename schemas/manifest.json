@@ -113,6 +113,32 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Optional OAuth-style scopes that unlock additional capabilities."
+        },
+        "agent_signatures": {
+          "type": "object",
+          "description": "Declares support for verifiable agent identity via RFC 9421 HTTP Message Signatures (see the Agent Identity section).",
+          "properties": {
+            "supported": {
+              "type": "boolean",
+              "description": "Whether the provider verifies RFC 9421 agent request signatures."
+            },
+            "algorithms": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["ed25519", "ecdsa-p256-sha256", "ecdsa-p384-sha384", "rsa-pss-sha512"]
+              },
+              "description": "Accepted RFC 9421 signature algorithm labels. 'ed25519' is RECOMMENDED."
+            },
+            "required_for": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["begin_application", "submit_application", "application_prefill", "full_profile", "restricted_feed"]
+              },
+              "description": "Context tokens where a verified agent identity is mandatory. See the Agent Identity section for how each token matches an incoming request."
+            }
+          }
         }
       }
     },

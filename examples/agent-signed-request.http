@@ -1,0 +1,32 @@
+# Example: an RFC 9421-signed OJCP agent request (see the Agent Identity spec section).
+# The Signature-Agent origin (agent.wayfarer.ai) must match the authority of the
+# agent_id (ai.wayfarer.agent -> wayfarer.ai) per the Public Suffix List.
+# The signing key is published as a JWKS at:
+#   https://agent.wayfarer.ai/.well-known/http-message-signatures-directory
+# keyid is the base64url RFC 7638 JWK thumbprint of that key.
+# NOTE: the Content-Digest, Signature, and keyid values below are illustrative
+# placeholders — they are not a real signature/digest over this request body.
+
+POST /ojcp/mcp?limit=10 HTTP/1.1
+Host: careers.acme.com
+Signature-Agent: "https://agent.wayfarer.ai"
+Content-Digest: sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:
+Content-Type: application/json
+Signature-Input: ojcp=("@method" "@authority" "@path" "@query" "content-digest" "signature-agent");created=1750684800;expires=1750685040;nonce="a1b2c3d4";keyid="poqkLGiymh_W0uP6PZFw-Sn8xYQ2y5f0aXpQnKQ8example";tag="web-bot-auth"
+Signature: ojcp=:k8JQ3exampleBASE64SIGNATUREvalueHEREnotReal==:
+
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "search_jobs",
+    "arguments": {
+      "query": "senior backend engineer remote",
+      "agent_declaration": {
+        "agent_id": "ai.wayfarer.agent",
+        "acting_on_behalf_of": "human_user"
+      }
+    }
+  },
+  "id": 1
+}
