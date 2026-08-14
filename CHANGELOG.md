@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC 0001 accepted** — verifiable agent identity via HTTP Message Signatures (RFC 9421); decision recorded in `docs/decisions/0001-agent-identity.md`. Normative spec/schema implementation to follow.
 - `GOVERNANCE.md` — steering committee structure (7 founding seats), bootstrap period, decision-making, conflict-of-interest policy, patent non-assertion covenant, infrastructure succession plan
 - `CODE_OF_CONDUCT.md` — adopts Contributor Covenant 2.1; bootstrap-period dual-review enforcement
 - `ADOPTERS.md` — public list of adopters across Steering Members / Implementing / Evaluating tiers
