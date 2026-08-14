@@ -39,23 +39,20 @@ We propose adding two optional string properties to `schemas/job-posting.json` t
      "format": "uri",
      "description": "The canonical public web URL of the job description page on the employer's official careers site or ATS. Used as a trust and verification anchor for candidates."
    }
+   ```
 
 3. **Cryptographic Trust Anchor (RFC 0001 Integration):**
-   A bare URL is spoofable on its own. To establish a genuine trust anchor, official_job_url should leverage the origin-binding model introduced in RFC 0001 (Verifiable Agent Identity).
-   When an agent recives a job posting, the provider SHOULD verify that the registrable domain of the official_job_url matches (or is a trusted affiliate of) the verified domain established by the provider's HTTP Message Signature (Signature-Agent).
-   This ties the canonical URL to the verified domain, transforming a plain link into a cryptographically backed trust anchor that proves the job legitimately originates from the claimed employer.
 
-4. **Affected areas**
+A bare URL is spoofable on its own. To establish a genuine trust anchor, official_job_url should leverage the origin-binding model introduced in RFC 0001 (Verifiable Agent Identity).
+When an agent receives a job posting, the agent SHOULD verify that the registrable domain of the official_job_url matches the verified domain established by the provider's verified domain (referencing manifest signing / the Provider Trust section / .well-known/ojcp-keys.json).
+This ties the canonical URL to the verified domain, transforming a plain link into a cryptographically backed trust anchor that proves the job legitimately originates from the claimed employer.
 
-- [ ] Tool definitions (request signing applies across all tools)
-- [x] Core schemas (`AgentDeclaration` gains `agent_id` binding + optional `user_mandate`)
-- [ ] Apply path types
-- [ ] Manifest format (`auth.agent_signatures` block)
-- [ ] Identity verification (agent + user-authorization identity, composing with candidate identity)
-- [x] Security / privacy model (signature, replay, downgrade, origin-binding, delegation, disclosure)
-- [ ] Other:
+## Affected areas
 
-5. **Alternatives considered**
+- [x] Core schemas (JobPosting)
+
+
+## Alternatives considered
 
 - Relying solely on the schema.org url field: Rejected.
 Job boards and third-party aggregators often inject their own URLs into the url property.
@@ -64,14 +61,14 @@ We need a dedicated official_job_url field that explicitly guarantees the canoni
 - No fallback URL (Status Quo): Rejected. 
 Leaving agents with only direct API endpoints creates a single point of failure (if the API errors out) and removes the candidate's ability to manually verify the legitimacy of a listing, increasing exposure to recruitment fraud.
 
-6. **Breaking changes**
+## Breaking changes
 
 None. The addition of both url and official_job_url is strictly optional and additive.
 
 Existing v0.1 providers and consumers will safely ignore the new properties if they do not yet support them.
 
 
-7. **For maintainers — comment period and resolution**
+## For maintainers — comment period and resolution
 
 Comment period opens: 2026-08-13
 
