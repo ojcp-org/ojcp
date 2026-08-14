@@ -27,6 +27,11 @@
       "type": "string",
       "enum": ["assisted", "autonomous", "supervised"],
       "description": "How the agent interacts with the user during the apply flow. 'assisted' = user confirms key steps, 'autonomous' = fully hands-off, 'supervised' = user monitors but does not intervene."
+    },
+    "user_mandate": {
+      "type": "string",
+      "maxLength": 8192,
+      "description": "Optional user-rooted authorization credential (compact SD-JWT VC) that endorses the agent's signing key and is bound to a hash of the specific action. Proves the human authorized THIS action, as distinct from acting_on_behalf_of (a self-asserted hint). A self-asserted acting_on_behalf_of MUST NOT be treated as delegated user authority. The precise claim set is defined by the forthcoming OJCP consent RFC."
     }
   }
 }

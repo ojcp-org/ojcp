@@ -512,6 +512,14 @@ Standard error codes:
     <tr><td>`unauthorized`</td><td>Authentication required but not provided.</td></tr>
     <tr><td>`forbidden`</td><td>Authentication provided but insufficient permissions.</td></tr>
     <tr><td>`provider_error`</td><td>Internal provider error. Agent should retry with backoff.</td></tr>
+    <tr><td>`agent_signature_missing`</td><td>A signature was required for this context but none was provided. See [[#agent-identity]].</td></tr>
+    <tr><td>`agent_signature_invalid`</td><td>The RFC 9421 signature failed verification.</td></tr>
+    <tr><td>`agent_key_not_found`</td><td>No key matching `keyid` in the agent's signature directory.</td></tr>
+    <tr><td>`agent_digest_mismatch`</td><td>`Content-Digest` does not match the request body.</td></tr>
+    <tr><td>`agent_algorithm_unsupported`</td><td>Signature algorithm not accepted, or the wire `alg` conflicts with the resolved key.</td></tr>
+    <tr><td>`agent_signature_expired`</td><td>The signature is expired, not yet valid, or its window exceeds the permitted maximum.</td></tr>
+    <tr><td>`agent_nonce_replayed`</td><td>The `(keyid, nonce)` pair was already seen within the freshness window.</td></tr>
+    <tr><td>`agent_identity_mismatch`</td><td>The `Signature-Agent` origin does not match the `agent_id` registrable domain.</td></tr>
   </tbody>
 </table>
 
@@ -1112,6 +1120,155 @@ Providers SHOULD sign their manifests to enable the `verified` registry tier and
 - Manifests SHOULD be re-signed regularly (RECOMMENDED: daily) to keep the `signature.expires_at` window short. This limits the window in which a compromised manifest can be served.
 - Build pipelines SHOULD sign manifests automatically rather than requiring human intervention. Long-lived signatures from manual signing increase risk.
 - Providers operating multiple subdomains (e.g., `careers.acme.com` and `jobs.acme.com`) MAY share a single JWK Set if both domains can serve it — the `signature.iss` claim distinguishes which domain a given signature is bound to.
+
+# Agent Identity # {#agent-identity}
+
+`AgentDeclaration.agent_id` is self-asserted: without proof, any caller can claim to be
+`ai.wayfarer.agent`, so every mechanism that keys on `agent_id` (agent-scoped visibility,
+employer allowlists, rate limiting, abuse attribution, audit trails) is spoofable. This section
+defines how an agent makes its `agent_id` **cryptographically verifiable** using [[RFC9421]] HTTP
+Message Signatures with key discovery bound to the agent's reverse-domain identity. It was
+adopted via RFC 0001.
+
+This is an **identity** layer, not an **authorization** layer, and it is **OPTIONAL**. A
+provider that declares no signature requirements and an agent that signs nothing behave exactly
+as elsewhere in v0.1 (the agent is treated as unauthenticated). Agent identity is distinct from
+[[#identity-verification]], which verifies the human *candidate*; the two compose.
+
+## Signing Profile ## {#agent-signing-profile}
+
+When an agent signs a request it MUST produce an [[RFC9421]] signature with:
+
+- **Covered components:** `@method`, `@authority`, `@path`, `@query`, `content-digest`, and the `signature-agent` header. Covering `@query` is REQUIRED; omitting it permits query-parameter tampering ([[RFC9421]] §7.2.1). Implementations MAY cover `@target-uri` in place of `@authority`/`@path`/`@query`, but `@method` MUST remain covered in either case.
+- **Signature parameters:** `created`, `expires`, `nonce`, `keyid`, and `tag="web-bot-auth"` — all MUST be present.
+- **`keyid`:** the base64url-encoded JWK SHA-256 thumbprint of the signing key per [[RFC7638]].
+- **`Content-Digest`** ([[RFC9530]], `sha-256`) computed over the exact transmitted body bytes. For bodyless requests (e.g. GET) the digest MUST be computed over empty content and still covered, so verification does not break.
+
+Algorithms use [[RFC9421]] registry labels: `ed25519` is RECOMMENDED (and is required for
+interoperability with currently-deployed verifiers, which are Ed25519-only); `ecdsa-p256-sha256`,
+`ecdsa-p384-sha384`, and `rsa-pss-sha512` are PERMITTED; `rsa-v1_5-sha256` MUST NOT be used. The
+verifier MUST derive the algorithm from the resolved key, not from any wire `alg` parameter, and
+MUST reject a wire `alg` that conflicts with the key ([[RFC9421]] §7.3.6).
+
+<div class="example">
+```http
+POST /ojcp/mcp?limit=10 HTTP/1.1
+Host: careers.acme.com
+Signature-Agent: "https://agent.wayfarer.ai"
+Content-Digest: sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:
+Content-Type: application/json
+Signature-Input: ojcp=("@method" "@authority" "@path" "@query" "content-digest" "signature-agent");\
+  created=1750684800;expires=1750685040;nonce="a1b2c3d4";keyid="poqkLGiymh_W0uP6PZFw-...";tag="web-bot-auth"
+Signature: ojcp=:k8J...:
+```
+</div>
+
+The `Content-Digest`, `Signature`, and `keyid` values above are illustrative placeholders, not a
+real signature over the example body.
+
+## Key Discovery ## {#agent-key-discovery}
+
+The `Signature-Agent` header carries an `https://` directory origin. The provider fetches a JWK
+Set at `<origin>/.well-known/http-message-signatures-directory` (media type
+`application/http-message-signatures-directory+json`) and selects the key whose [[RFC7638]]
+thumbprint equals `keyid`. Unlike the manifest-signing JWKS in [[#trust-jwks]] (which resolves by
+`kid` at a different path), the agent directory resolves by thumbprint; providers SHOULD apply the
+same key-rotation, overlap, and cache guidance as [[#trust-jwks]] but MUST NOT assume the same
+path, media type, or `kid`-based lookup.
+
+Because this fetch is triggered by an unauthenticated, attacker-influenced origin, it is an
+SSRF vector and MUST be hardened. The fetch MUST use HTTPS and MUST NOT follow cross-host
+redirects. Providers MUST resolve the origin's host and refuse the fetch when it resolves to a
+loopback, private ([[RFC1918]]), link-local, or unique-local address, and MUST re-validate the
+address actually connected to against that rule (defeating DNS rebinding). Providers MUST enforce
+a response size limit and a connect/read timeout. This well-known URI is defined by the Web Bot
+Auth directory draft and is consumed — not registered — by OJCP.
+
+## Identity Binding ## {#agent-identity-binding}
+
+The `Signature-Agent` origin MUST correspond to the **registrable domain** of `agent_id` — the
+domain obtained by reversing the reverse-domain identifier and taking its registrable domain per
+the Public Suffix List. For `ai.wayfarer.agent` the registrable domain is `wayfarer.ai`, so
+`Signature-Agent` MUST be on `wayfarer.ai` or a subdomain. The Public Suffix List **including its
+PRIVATE section** MUST be used (using the ICANN-only section would collapse, e.g.,
+`user.github.io` to `github.io` and let any `github.io` agent bind another's `agent_id`). Both the
+`agent_id`-derived domain and the `Signature-Agent` host MUST be normalized to their A-label
+(punycode) form and lowercased before comparison. This binding is what prevents an attacker from
+hosting keys on a domain they control while claiming another party's `agent_id`. (Note: this
+"registrable domain" is unrelated to the `@authority` covered component in
+[[#agent-signing-profile]], which is the request's own host.)
+
+## Verification ## {#agent-verification}
+
+A provider that accepts a signed request MUST, in order:
+
+1. Resolve the signing key from the `Signature-Agent` directory by `keyid` thumbprint.
+2. Verify the signature per [[RFC9421]], deriving the algorithm from the resolved key.
+3. Verify `Content-Digest` matches the received (or empty) body.
+4. Verify freshness: `created` and `expires` MUST both be present; `created` MUST NOT be in the future beyond the clock-skew tolerance (RECOMMENDED ≤ 60s); `expires` MUST NOT be in the past; and the window (`expires` minus `created`) MUST NOT exceed 300s.
+5. Verify the `nonce` has not been seen for this `keyid` within the freshness window. Providers MUST maintain a replay cache retaining each `(keyid, nonce)` at least until its `expires`; because the window is capped at 300s (step 4) the cache is bounded. [[RFC9421]] defines `nonce` but leaves replay detection to the application.
+6. Verify the identity binding ([[#agent-identity-binding]]).
+7. Treat `agent_id` as **verified** only if all of the above pass.
+
+On any failure the provider MUST return the standard OJCP error envelope ([[#tool-errors]]) with
+one of the agent-signature error codes registered in [[#tool-errors]]: `agent_signature_missing`,
+`agent_signature_invalid`, `agent_key_not_found`, `agent_digest_mismatch`,
+`agent_algorithm_unsupported`, `agent_signature_expired`, `agent_nonce_replayed`,
+`agent_identity_mismatch` — and MUST NOT process the request as if the identity were verified.
+When a required context (see [[#agent-manifest-policy]]) is called without a valid signature, the
+provider MUST NOT fall back to unsigned processing.
+
+With a verified identity, providers SHOULD bind the apply session to the signer: a
+`submit_application` whose verified signer differs from the `begin_application` signer for the
+same session SHOULD be rejected.
+
+## Manifest Declaration ## {#agent-manifest-policy}
+
+Providers declare support and requirements in the [=Job Manifest=] `auth` block:
+
+<div class="example">
+```json
+"auth": {
+  "required": false,
+  "optional_scopes": ["candidate_context", "application_tracking", "restricted_feed"],
+  "agent_signatures": {
+    "supported": true,
+    "algorithms": ["ed25519", "ecdsa-p256-sha256"],
+    "required_for": ["restricted_feed", "application_prefill", "submit_application"]
+  }
+}
+```
+</div>
+
+`required_for` lists contexts where a **verified** identity is mandatory. Each entry is one
+context token from a fixed vocabulary, and a provider MUST require a verified `agent_id` for any
+request that matches a listed token:
+
+- `begin_application`, `submit_application` — match a call to that tool.
+- `application_prefill`, `full_profile` — match when the request's [=Candidate Context=] declares that `consent_scope` (i.e., PII is in play).
+- `restricted_feed` — match when that optional scope is exercised.
+
+Permissionless unsigned access SHOULD remain available for anonymous `search_jobs` at
+`fit_scoring` scope and below.
+
+## Personal-Agent Delegation ## {#agent-delegation}
+
+For an agent acting on behalf of an individual (who does not control a domain), identity is two
+facts established by two keys:
+
+1. **Platform attestation** — [[#agent-signing-profile]] through [[#agent-verification]], signed with the *platform's* key. The `agent_id` identifies the platform (e.g., `ai.northstar.assistant`, whose registrable domain — and therefore `Signature-Agent` origin — is `northstar.ai`). This proves *which software* is calling; it does not establish user authority.
+2. **User authorization** — an OPTIONAL `user_mandate` carried in the `AgentDeclaration`: a credential **signed by a key the user controls** that endorses the agent's signing key (a key-binding) and is bound to a hash of the specific action, realized as an SD-JWT Verifiable Credential so the agent can prove *"an authorized user of this platform mandated action X"* without disclosing *which* human unless the provider requires it.
+
+Normative rules:
+
+- Providers MUST NOT treat `acting_on_behalf_of` (a self-asserted string) as delegated user authority. Where user authority matters (e.g., `submit_application` for a named candidate), a provider requiring it MUST require a `user_mandate` whose authority chains to a user-controlled key, not the platform key.
+- The mandate's bound action hash MUST cover the material application content so a captured mandate cannot be replayed against a different submission.
+- Agents SHOULD honor the existing `interaction_mode` distinction (`assisted`/`supervised` = user-present; `autonomous` = pre-authorized).
+- To preserve candidate privacy, agents SHOULD NOT transmit `acting_on_behalf_of` values or user identifiers in the clear where a selectively-disclosed `user_mandate` can carry them; providers MUST NOT require disclosure of the underlying human beyond what the matched context needs.
+
+The precise `user_mandate` schema is defined by a forthcoming consent RFC; this section fixes the
+*requirement* (user-rooted, key-bound, selectively disclosed) so the identity model is correct
+for personal agents from the outset.
 
 # Identity Verification # {#identity-verification}
 
@@ -1801,11 +1958,15 @@ This specification registers two well-known URIs per [[RFC8615]]:
 
 Registration will be submitted to IANA when this specification reaches stable status.
 
+OJCP additionally **consumes** the `/.well-known/http-message-signatures-directory` well-known URI
+for agent key discovery ([[#agent-key-discovery]]); that URI is defined and registered by the Web
+Bot Auth directory specification, not by OJCP.
+
 # Open Questions # {#open-questions}
 
 1. **Form skill schema** — The `form_skill_url` field on [=apply paths=] references a companion specification for form skill descriptors. This schema — covering field mappings, validation rules, conditional logic, and submission instructions — will be defined in a separate RFC.
 2. **CandidateContext as companion spec** — Privacy sensitivity may warrant splitting [=Candidate Context=] into its own RFC track in a future version.
-3. **Agent trust model** — The identity verification extension ([[#identity-verification]]) addresses verification of *candidates* via third-party [=Identity Verifiers=]. *Agent* identity verification — cryptographic signatures on [=Agent Declarations=] — remains TBD. A future version may allow agents to sign their declarations with keys registered in the OJCP Registry, enabling providers to cryptographically verify agent identity rather than relying solely on self-declared `agent_id`.
+3. **Agent trust model** — *Resolved* by [[#agent-identity]] (RFC 0001): agent identity is made verifiable via [[RFC9421]] request signatures with domain-bound key discovery, distinct from and composing with candidate [[#identity-verification]]. Remaining open sub-question: whether the user-authorization `user_mandate` (see [[#agent-delegation]]) should be standardized in a future version rather than deferred to the companion consent RFC.
 4. **Registry governance** — Registration process, verification criteria, provider auditing, and dispute resolution for the OJCP Registry at `registry.ojcp.dev`.
 5. **Verifier internal protocol** — OJCP defines the [=Verification Proof=] envelope (JWS format, required claims, JWKS discovery, validation procedure) and the verifier discovery convention (`/.well-known/ojcp-verifier.json`). How verifiers conduct verification internally — candidate interaction flows, biometric capture, document processing — is intentionally out of scope. A companion specification may define verifier interoperability requirements in a future version.
 
