@@ -10,17 +10,31 @@ OJCP is a community standard. Its long-term value depends on broad adoption acro
 
 The OJCP Steering Committee is the body responsible for ratifying spec changes, accepting new conformance criteria, and stewarding the long-term direction of the protocol.
 
-The committee is composed of **seven (7) founding seats**. Seats are not assigned to fixed ecosystem categories — the committee represents the OJCP ecosystem as a whole, not specific market segments. All initial seat-holders are designated **founding contributors** of OJCP and share equal authority and equal responsibility for the protocol's trajectory.
+The committee is composed of **nine (9) founding seats**. Seats are not assigned to fixed ecosystem categories — the committee represents the OJCP ecosystem as a whole, not specific market segments. All initial seat-holders are designated **founding contributors** of OJCP and share equal authority and equal responsibility for the protocol's trajectory.
 
 | Seat | Current Holder |
 |------|----------------|
 | 1 | Austin Anderson, Recruitics (specification author) |
-| 2 | _Open — nominations welcome_ |
-| 3 | _Open — nominations welcome_ |
-| 4 | _Open — nominations welcome_ |
-| 5 | _Open — nominations welcome_ |
-| 6 | _Open — nominations welcome_ |
-| 7 | _Open — nominations welcome_ |
+| 2 | Hamed Nilforoshan, Hiring.cafe |
+| 3 | Bryan Hughes, CrossCountry Healthcare |
+| 4 | David Stevens, Workday |
+| 5 | Peter Utekal, aiApply |
+| 6 | Balaji Kummari, scale.jobs |
+| 7 | Tom Chevalier, Tink |
+| 8 | Lucas Simopoulos, LoopCV |
+| 9 | _Invited — confirmation pending_ |
+
+**Note on committee size.** The founding committee was sized at seven seats and is
+seated here at nine. This is initial seating during the bootstrap period, not an
+expansion of an already-seated committee: no seats had been publicly ratified prior
+to this table being published, so the RFC-and-supermajority process under "Adding
+seats" — which governs expansion of a *seated* committee — does not apply
+retroactively. Nine preserves the odd-number requirement and remains below the
+eleven-seat cap. Any expansion beyond nine follows the documented process.
+
+_Seat table last reviewed: 2026-07-28. Seat-holders are listed only once they have
+confirmed public listing; organizations that have contributed requirements and
+feedback without holding a seat are listed as contributors on ojcp.dev._
 
 **Diversity constraint:** The committee SHOULD reflect the breadth of the OJCP ecosystem — ATS vendors, job boards, auto-apply tools, agent platforms, staffing agencies, and independents. No more than two seats may be held by organizations in the same market segment. This is enforced during nomination review, not by pre-assigning categories to seats.
 
@@ -28,7 +42,7 @@ The Recruitics seat is held because Austin Anderson authored the v0.1 specificat
 
 **Bootstrap-period note on composition:** During the initial seating, the founding contributor SHOULD prioritize ecosystem diversity when selecting seat-holders — ensuring representation across ATS vendors, job boards, auto-apply / candidate-side tools, agent platforms, and independent voices. This guidance is non-binding once the committee reaches steady state; at that point the seated members collectively decide what composition best serves the protocol.
 
-**Bootstrap-period rule:** Until a majority of seats (4 of 7) are filled by ratified appointees, all spec-affecting decisions require a public RFC with a minimum 30-day comment window and resolution by the seated members with documented rationale. Every decision made in this period is recorded in `docs/decisions/` and may be revisited once the committee is fully seated.
+**Bootstrap-period rule:** Until a majority of seats (5 of 9) are filled by ratified appointees, all spec-affecting decisions require a public RFC with a minimum 30-day comment window and resolution by the seated members with documented rationale. Every decision made in this period is recorded in `docs/decisions/` and may be revisited once the committee is fully seated.
 
 **Target seating date:** All seats will be opened for nomination by **2026-05-01**, with confirmed appointees by **2026-06-01**. If this timeline slips, the slip is publicly acknowledged in this document.
 
@@ -39,17 +53,17 @@ The Recruitics seat is held because Austin Anderson authored the v0.1 specificat
 1. Nominations are submitted via GitHub issue using the [`nomination` template](.github/ISSUE_TEMPLATE/nomination.md). Self-nominations are welcome; Recruitics may also directly invite candidates, who then file the nomination as a self-nomination noting that they were invited.
 2. A 30-day public comment period follows each nomination.
 3. **Recruitics selects** the founding holder for each seat from the publicly-nominated candidates, with selection rationale documented in `docs/decisions/`.
-4. Appointments are for **two-year terms, renewable indefinitely**. Each renewal requires re-confirmation: a public 30-day comment window followed by a simple-majority vote of the other six seated members. The Recruitics seat is renewable on the same terms — there is no permanent status for any seat.
+4. Appointments are for **two-year terms, renewable indefinitely**. Each renewal requires re-confirmation: a public 30-day comment window followed by a simple-majority vote of the other eight seated members. The Recruitics seat is renewable on the same terms — there is no permanent status for any seat.
 5. No two seats may be held by the same company simultaneously.
 
 This bootstrap authority is **scoped solely to seating the initial committee** — it does not extend to spec-affecting decisions, which still follow the RFC process throughout the bootstrap period.
 
-**Steady state (after all 7 seats are filled):**
+**Steady state (after all 9 seats are filled):**
 
 1. Nominations are submitted via GitHub issue using the [`nomination` template](.github/ISSUE_TEMPLATE/nomination.md).
 2. A 30-day public comment period follows each nomination.
-3. **Existing committee members vote** (simple majority). Recruitics no longer holds selection authority — its seat is one vote among seven.
-4. Appointments are for **two-year terms, renewable indefinitely**. Each renewal requires re-confirmation: a public 30-day comment window followed by a simple-majority vote of the other six seated members. The Recruitics seat is renewable on the same terms — there is no permanent status for any seat.
+3. **Existing committee members vote** (simple majority). Recruitics no longer holds selection authority — its seat is one vote among nine.
+4. Appointments are for **two-year terms, renewable indefinitely**. Each renewal requires re-confirmation: a public 30-day comment window followed by a simple-majority vote of the other eight seated members. The Recruitics seat is renewable on the same terms — there is no permanent status for any seat.
 5. No two seats may be held by the same company simultaneously.
 
 ### Removal
@@ -61,14 +75,14 @@ A seat may be vacated by:
 
 ### Expanding the committee
 
-The committee may expand beyond the founding 7 seats as the ecosystem matures. Expansion is bounded and deliberate:
+The committee may expand beyond the founding 9 seats as the ecosystem matures. Expansion is bounded and deliberate:
 
 - **Maximum size:** 11 seats. The committee must remain an odd number to avoid deadlock. Beyond 11, governance overhead outweighs representational benefit; if more voices are needed, it's a signal to form working groups (see below) rather than enlarge the committee.
 - **When to expand:** A new seat may be proposed when a distinct ecosystem segment is materially underrepresented and at least one organization in that segment is actively contributing to OJCP. Examples that *could* warrant a new seat in the future: regulators or labor-market policy bodies, candidate-rights / privacy advocacy, identity verifier providers, or a regional / non-US perspective.
 - **Process:**
   1. Any committee member opens an RFC proposing the new seat, naming the ecosystem role it represents and why existing seats don't cover it.
   2. 60-day public comment period.
-  3. Supermajority vote of the existing committee (80%, rounded up — e.g., 6 of 7).
+  3. Supermajority vote of the existing committee (80%, rounded up — e.g., 8 of 9).
   4. If approved, the new seat opens for nominations following the steady-state process above.
 
 ### Working groups
@@ -95,8 +109,8 @@ Non-substantive changes (typos, examples, doc clarifications) do not require an 
 
 - **Lazy consensus** is the default. After the comment window closes, if no committee member has objected, the change is accepted.
 - If objections exist, the committee votes. **Simple majority** of votes cast carries, subject to quorum.
-- **Quorum** is a majority of seated members (e.g., 4 of 7 when fully seated; 2 of 3 during early bootstrap). Votes that fail to meet quorum are re-opened for an additional 14 days.
-- No seat has veto power. Each seat is one vote among seven (or however many seats are seated).
+- **Quorum** is a majority of seated members (e.g., 5 of 9 when fully seated; 2 of 3 during early bootstrap). Votes that fail to meet quorum are re-opened for an additional 14 days.
+- No seat has veto power. Each seat is one vote among nine (or however many seats are seated).
 - Tie votes (possible when an even number of seats vote) are resolved by deferring the decision and re-opening for additional public comment.
 
 ### Maintainers
@@ -228,7 +242,7 @@ Changes to `GOVERNANCE.md` itself require:
 - A 60-day public comment period (longer than the standard RFC window)
 - A supermajority vote (80%, rounded up) of the steering committee, OR — during the bootstrap period — sign-off from all currently-seated members plus a documented public-comment summary
 
-**Bootstrap-period guardrail.** While the steering committee is being seated, governance amendments are constrained to: (a) error corrections (typos, broken links, mathematical inconsistencies), (b) clarifications that do not change the substantive meaning of any rule, or (c) changes that have been publicly proposed and not objected to during the 60-day window. Substantive policy changes that *expand* Recruitics's authority — including but not limited to: extending the bootstrap period, adding selection authority over additional seats, or changing the IP regime — are explicitly out of scope until the committee reaches at least 4 of 7 seated members.
+**Bootstrap-period guardrail.** While the steering committee is being seated, governance amendments are constrained to: (a) error corrections (typos, broken links, mathematical inconsistencies), (b) clarifications that do not change the substantive meaning of any rule, or (c) changes that have been publicly proposed and not objected to during the 60-day window. Substantive policy changes that *expand* Recruitics's authority — including but not limited to: extending the bootstrap period, adding selection authority over additional seats, or changing the IP regime — are explicitly out of scope until the committee reaches at least 5 of 9 seated members.
 
 This higher bar is intentional. Governance should be stable and predictable.
 
