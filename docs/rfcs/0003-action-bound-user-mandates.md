@@ -94,7 +94,8 @@ a mandate accepted for an OJCP action MUST convey, directly or by selectively-di
 - `iss` and an issuer or user-root public-key reference;
 - `cnf.jkt`, the RFC 7638 thumbprint of the *agent signing key* authorized to exercise the
   mandate;
-- `aud`, the provider origin or stable provider identifier for which the mandate was issued;
+- `aud`, the OJCP resource-server origin that will consume the mandate; for a multi-tenant ATS,
+  this identifies the ATS endpoint, not the employer's public website (see section 4.1);
 - `iat`, `nbf` when used, `exp`, and a unique `jti`;
 - an OJCP version identifier;
 - an action statement defined in section 4; and
@@ -114,7 +115,8 @@ serialized using JCS (RFC 8785) and hashed using SHA-256 when it is embedded by 
 ```json
 {
   "ojcp_version": "0.1",
-  "provider": "https://careers.example.com",
+  "resource_server": "https://careers.example.com",
+  "employer": { "ojcp_employer_id": "acme" },
   "tool": "submit_application",
   "job_id": "careers.example.com:1234",
   "application_id": "app_7f3a...",
@@ -125,17 +127,53 @@ serialized using JCS (RFC 8785) and hashed using SHA-256 when it is embedded by 
 }
 ```
 
-`provider`, `tool`, `job_id`, `agent_id`, and `agent_key_thumbprint` are REQUIRED. For
+`resource_server`, `tool`, `job_id`, `agent_id`, and `agent_key_thumbprint` are REQUIRED. The
+`employer` binding is REQUIRED when the resource server serves more than one employer. For
 `submit_application`, `application_id`, `candidate_data_digest`, and `mandate_nonce` are also
 REQUIRED. The digest is over the semantically material candidate data sent with the submission,
 excluding transport metadata and the mandate itself. It prevents substitution of a different
 resume reference, screening answer, contact address, or profile after consent.
 
+#### 4.1. Multi-tenant ATS audience and employer binding
+
+Many ATS providers host application flows for multiple employers. In that case, the recipient of
+the mandate and the employer for whom an application is made are separate security properties:
+
+- `aud` and `resource_server` identify the OJCP endpoint that consumes the mandate, such as an
+  ATS tenant or shared ATS API origin. They prevent a credential issued for one resource server
+  from being presented to another.
+- The action statement MUST also bind the employer context of the job. A multi-tenant provider
+  MUST include `employer.ojcp_employer_id` from the JobPosting when it is available. It MAY also
+  include an `official_job_url` once that field is standardized and the provider has verified its
+  association with the job. An unverified URL alone is not an authorization boundary.
+
+For clarity, a multi-tenant action statement uses `resource_server` rather than an ambiguous
+`provider` field and includes the employer binding explicitly:
+
+```json
+{
+  "resource_server": "https://apply.example-ats.com",
+  "employer": { "ojcp_employer_id": "acme" },
+  "tool": "submit_application",
+  "job_id": "apply.example-ats.com:1234",
+  "application_id": "app_7f3a...",
+  "agent_id": "ai.example.agent",
+  "agent_key_thumbprint": "base64url-rfc7638-thumbprint",
+  "candidate_data_digest": "sha256:base64url(JCS(candidate fields and answers))",
+  "mandate_nonce": "provider-issued-single-use-nonce"
+}
+```
+
+The provider MUST reconstruct both bindings from its own session state and reject a mandate that
+matches its endpoint but names a different employer, tenant, job, or official-job anchor. This
+prevents a mandate for Acme from being reused for another employer on the same ATS.
+
 For `begin_application`, a provider MAY accept a mandate without `application_id`; when it does,
-the action statement MUST still bind the provider, job, agent signing key, requested consent
-scope, and any candidate data to be prefetched. Before a mandate-bound `submit_application`, the
-provider MUST return an unpredictable `mandate_nonce` with the application session. This avoids
-using a low-entropy PII digest alone as a reusable or dictionary-attackable authorization handle.
+the action statement MUST still bind the resource server, employer when multi-tenant, job, agent
+signing key, requested consent scope, and any candidate data to be prefetched. Before a
+mandate-bound `submit_application`, the provider MUST return an unpredictable `mandate_nonce`
+with the application session. This avoids using a low-entropy PII digest alone as a reusable or
+dictionary-attackable authorization handle.
 
 The final consent RFC SHOULD define a short action-statement schema and a registry for any
 additional tool-specific fields. Providers and agents MUST ignore fields they do not recognize,
@@ -159,6 +197,13 @@ For a context that requires a user mandate, a provider MUST:
    mechanism, but MUST NOT create a second application.
 7. Bind the acceptance decision to the application session and invalidate it when the user
    revokes consent or when the mandate expires.
+
+A mandate bound through `cnf.jkt` authorizes that exact agent signing key, not every key that the
+agent platform may publish in the future. An agent's key directory MUST retain the mandated key
+until the mandate expires; key rotation does not transfer a mandate to a new key. If the old key
+cannot remain available for verification, the user mandate MUST be reissued for the new key. This
+keeps the mandate lifetime within the key-retention/rotation window and avoids silently widening
+the user's authorization.
 
 Failure at any step MUST fail closed and MUST NOT fall back to treating
 `acting_on_behalf_of`, a platform signature, or an identity-verification proof as authorization.
@@ -204,6 +249,10 @@ Implementations should avoid logging raw mandates, candidate data, or undisclose
 Revocation is especially important in hiring: a candidate may withdraw consent while a long-running
 verification or application session is pending. A provider must stop accepting the mandate and
 invalidate the associated OJCP session once revocation becomes effective.
+
+Key rotation must not weaken agent binding. Providers should cache the mandated key only in line
+with the directory's rotation and expiry rules, and agents must publish the old key for at least
+the full lifetime of every outstanding mandate that references it.
 
 ### Alternatives considered
 
