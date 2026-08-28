@@ -1,16 +1,22 @@
 # OJCP — Open Job Context Protocol
 
-**A standard for agent-consumable job feeds.**
+**An open standard for agent-consumable job data, built on MCP.**
 
-[![Status: Draft](https://img.shields.io/badge/status-draft-yellow)](https://github.com/ojcp-org/ojcp)
-[![Version: 0.1](https://img.shields.io/badge/version-0.1-blue)](https://github.com/ojcp-org/ojcp)
-[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green)](https://www.apache.org/licenses/LICENSE-2.0)
+[![Status: Draft](https://img.shields.io/badge/status-draft%20v0.1-yellow)](https://spec.ojcp.dev/)
+[![Spec](https://img.shields.io/badge/spec-spec.ojcp.dev-blue)](https://spec.ojcp.dev/)
+[![License: Apache 2.0](https://img.shields.io/badge/code-Apache%202.0-green)](LICENSE)
+[![License: CC BY 4.0](https://img.shields.io/badge/spec-CC%20BY%204.0-green)](CONTRIBUTING.md#licensing)
 
 ---
 
 AI agents are beginning to search for jobs, evaluate opportunities, and submit applications on behalf of candidates. The infrastructure they're trying to use — job feeds, careers pages, ATS apply flows — was never designed for them.
 
-**OJCP defines how job opportunities, employer context, and application affordances should be expressed so that AI agents can discover, reason over, and act on them.** It composes with the [Model Context Protocol (MCP)](https://modelcontextprotocol.io), [WebMCP](https://developer.chrome.com/docs/ai/webmcp), and schema.org/JobPosting.
+**OJCP defines how job opportunities, employer context, and application affordances are expressed so that AI agents can discover, reason over, and act on them.** It composes with the [Model Context Protocol (MCP)](https://modelcontextprotocol.io), [WebMCP](https://developer.chrome.com/docs/ai/webmcp), and schema.org/JobPosting.
+
+- 📖 **Spec:** [spec.ojcp.dev](https://spec.ojcp.dev/)
+- 🌐 **Site:** [ojcp.dev](https://ojcp.dev)
+- ✅ **Conformance suite:** [ojcp-org/conformance](https://github.com/ojcp-org/conformance)
+- 🗂️ **Provider registry:** [ojcp-org/registry](https://github.com/ojcp-org/registry)
 
 <p align="center">
   <img src="content/images/overview.png" alt="OJCP — Candidate, Agent, Provider Journey" width="600" />
@@ -18,12 +24,47 @@ AI agents are beginning to search for jobs, evaluate opportunities, and submit a
 
 ---
 
+## Governed by a founding steering committee
+
+OJCP is a community standard, not a single-vendor project. It is governed by a **nine-seat founding steering committee** whose members share equal authority over the protocol's direction. Seats are held by people across the ecosystem — ATS vendors, job boards, auto-apply tools, agent platforms, and staffing — so that no single party can steer the spec to its own advantage.
+
+<p align="center">
+  <a href="https://www.workday.com"><img src="content/logos/members/workday.svg" alt="Workday" height="40" hspace="12"></a>
+  <a href="https://www.crosscountryhealthcare.com"><img src="content/logos/members/crosscountry.png" alt="CrossCountry Healthcare" height="40" hspace="12"></a>
+  <a href="https://www.recruitics.com"><img src="content/logos/members/recruitics.jpg" alt="Recruitics" height="40" hspace="12"></a>
+  <a href="https://loopcv.pro"><img src="content/logos/members/loopcv.png" alt="LoopCV" height="40" hspace="12"></a>
+  <a href="https://hiring.cafe"><img src="content/logos/members/hiringcafe.png" alt="Hiring.cafe" height="40" hspace="12"></a>
+  <a href="https://aiapply.co"><img src="content/logos/members/aiapply.png" alt="aiApply" height="40" hspace="12"></a>
+  <a href="https://scale.jobs"><img src="content/logos/members/scalejobs.jpg" alt="scale.jobs" height="40" hspace="12"></a>
+  <a href="https://gettink.ai"><img src="content/logos/members/tink.jpg" alt="Tink" height="40" hspace="12"></a>
+</p>
+
+<p align="center">
+  <em>Workday · CrossCountry Healthcare · Recruitics · LoopCV · Hiring.cafe · aiApply · scale.jobs · Tink</em>,
+  with an invited-expert seat held by Andrew Nolan (WebMCP co-creator).
+</p>
+
+See [GOVERNANCE.md](GOVERNANCE.md) for the seat table, term rules, and the RFC decision process, and [ADOPTERS.md](ADOPTERS.md) for organizations building on OJCP.
+
+---
+
+## The OJCP project
+
+| Repo | What it is |
+|---|---|
+| **[ojcp](https://github.com/ojcp-org/ojcp)** (this repo) | The specification, JSON Schemas, examples, diagrams, and governance |
+| **[conformance](https://github.com/ojcp-org/conformance)** | Test suite that validates a provider implementation against the published schemas |
+| **[registry](https://github.com/ojcp-org/registry)** | The provider registry — one reviewed JSON entry per provider, added by PR |
+
+---
+
 ## What's in this repo
 
 ```
 /spec
-  ojcp-v0.1.bs              # Bikeshed spec source (compiles to .html)
+  ojcp-v0.1.bs              # Bikeshed spec source (compiles to spec.ojcp.dev)
 /schemas
+  README.md                 # $id convention + how to validate offline
   manifest.json             # ojcp.json manifest schema
   job-posting.json          # JobPosting JSON schema
   candidate-context.json    # CandidateContext JSON schema
@@ -33,44 +74,22 @@ AI agents are beginning to search for jobs, evaluate opportunities, and submit a
   verification-proof.json   # VerificationProof schema
   verifier-manifest.json    # Verifier discovery manifest schema
   tools/                    # Tool input schemas
-    search-jobs-input.json
-    get-job-detail-input.json
-    get-employer-context-input.json
-    begin-application-input.json
-    submit-application-input.json
-    check-application-status-input.json
   responses/                # Tool response schemas
-    search-jobs.json
-    job-detail.json
-    employer-context.json
-    begin-application.json
-    submit-application.json
-    application-status.json
-    find-providers.json
-    error.json
-/examples
-  manifest.json             # Example /.well-known/ojcp.json
-  job-posting.json          # Example job with apply paths
-  verifier-manifest.json    # Example /.well-known/ojcp-verifier.json
-  verification-proof.json   # Example proof with decoded JWT claims
-  submit-application.json   # Example submit_application tool call
-  responses/                # Tool response examples
-    search-response.json
-    begin-application-verification.json
-    submit-application-response.json
-    submit-application-validation-failed.json
-    submit-application-verification-failed.json
-/diagrams
-  *.mmd                     # Mermaid diagram sources
+/examples                   # Worked manifests, job postings, tool responses,
+                            #   and a signed agent request (agent-signed-request.http)
+/diagrams                   # Mermaid diagram sources (*.mmd)
 /content
-  images/                   # Generated diagram PNGs
+  images/                   # Rendered diagram PNGs
+  logos/members/            # Steering-member logos
 /docs
-  proposal.md               # Original RFC proposal
-  decisions/                # Steering committee decision records
+  proposal.md               # Original proposal
+  rfcs/                     # Change proposals (RFC 0001 agent identity, …)
+  decisions/                # Architecture Decision Records (ADRs)
 GOVERNANCE.md               # Governance charter, steering committee, IP policy
-CONTRIBUTING.md             # How to contribute, RFC process, DCO
+CONTRIBUTING.md             # How to contribute, RFC process, DCO, licensing
 CODE_OF_CONDUCT.md          # Contributor Covenant
 ADOPTERS.md                 # Organizations using or evaluating OJCP
+CHANGELOG.md                # Notable spec + governance changes
 ```
 
 ---
@@ -93,13 +112,13 @@ Add a manifest at `/.well-known/ojcp.json`:
 }
 ```
 
-Then expose the standard OJCP tools via any MCP-compatible transport. See the [full spec](spec/ojcp-v0.1.bs) for tool schemas.
+Then expose the standard OJCP tools via any MCP-compatible transport, and check your implementation against the [conformance suite](https://github.com/ojcp-org/conformance). See the [full spec](https://spec.ojcp.dev/) for tool and data schemas.
 
 ### For browser-native agents (WebMCP)
 
-OJCP supports [WebMCP](https://developer.chrome.com/docs/ai/webmcp) (Chrome 146+) via two complementary APIs.
+OJCP supports [WebMCP](https://developer.chrome.com/docs/ai/webmcp) via two complementary APIs.
 
-**Imperative API** — Register OJCP tools directly on your careers page:
+**Imperative API** — register OJCP tools directly on your careers page:
 
 ```js
 if ("modelContext" in document) {
@@ -122,7 +141,7 @@ if ("modelContext" in document) {
 }
 ```
 
-**Declarative API** — Annotate apply forms so agents can submit applications natively:
+**Declarative API** — annotate apply forms so agents can submit applications natively:
 
 ```html
 <form toolname="begin_application"
@@ -135,23 +154,17 @@ if ("modelContext" in document) {
 </form>
 ```
 
-See [Section 6 of the spec](spec/ojcp-v0.1.bs) for the full WebMCP integration guide.
+See the WebMCP integration section of the [spec](https://spec.ojcp.dev/) for the full guide.
 
 ### For agent developers
 
-Query the OJCP Registry to discover compliant providers:
-
-```
-GET https://registry.ojcp.dev/.well-known/ojcp.json
-```
-
-Then call `find_ojcp_providers` as an MCP tool to locate relevant job context providers by industry, employer, or location.
+Discover providers from the [registry](https://github.com/ojcp-org/registry) — a Git-backed directory with one reviewed JSON entry per provider. Each entry points at a provider's `/.well-known/ojcp.json`; from there, probe the manifest and call the standard OJCP tools over MCP. To be listed, open a PR adding your entry (domain control is proven per the registry README).
 
 ---
 
 ## Core Concepts
 
-**Job Manifest** — Every OJCP provider exposes `/.well-known/ojcp.json` declaring their tools, endpoints, and apply paths. Agents and browsers probe this to discover capabilities without navigating the full site.
+**Job Manifest** — Every OJCP provider exposes `/.well-known/ojcp.json` declaring its tools, endpoints, apply paths, and (optionally) which requests require a verified agent identity. Agents and browsers probe this to discover capabilities without navigating the full site.
 
 **Job Tools** — MCP-compatible callable functions: `search_jobs`, `get_job_detail`, `get_employer_context`, `begin_application`, `submit_application`, `check_application_status`. Any MCP client can call them directly.
 
@@ -161,17 +174,11 @@ Then call `find_ojcp_providers` as an MCP tool to locate relevant job context pr
 
 **Candidate Context** — A minimal, consent-scoped candidate profile passed by agents for personalized search and fit scoring. PII-minimized by design.
 
-**Agent Declaration** — Agents identify themselves on every application initiation. Enables employer audit trails, rate limiting, and abuse prevention.
+**Agent Identity** *(RFC 0001, accepted)* — Agents can prove who they are with verifiable request signatures, so providers can distinguish a real, accountable agent from an anonymous scraper without gatekeeping through a central authority. OJCP uses [RFC 9421 HTTP Message Signatures](https://www.rfc-editor.org/rfc/rfc9421) on the [Web Bot Auth](https://developer.chrome.com/docs/ai/web-bot-auth) wire profile: the agent publishes its keys at a signatures directory, signs each request (Ed25519 recommended) and names its key via the `Signature-Agent` header. Providers declare support and which contexts require it under `auth.agent_signatures` in their manifest. A verified identity is a *hint about the agent*, not proof a human authorized the action — for that, an `agent_declaration` can carry an optional user-rooted `user_mandate`. See the Agent Identity section of the [spec](https://spec.ojcp.dev/) and [RFC 0001](docs/rfcs/0001-agent-identity-http-message-signatures.md).
 
-**Identity Verification** — For roles that require verified human identity (finance, government, healthcare), OJCP integrates with third-party verifiers like ID.me and Clear. Two delivery models are supported: **provider-managed** (verification embedded in the apply form, proof delivered directly to the provider via callback) and **agent-submitted** (agent collects the proof and includes it in `submit_application`). In both cases, candidates complete a face scan or ID upload, and a cryptographic proof is validated — no PII flows through the protocol.
+**Agent Declaration** — Agents identify themselves and who they act for on every application initiation. Enables employer audit trails, rate limiting, and abuse prevention.
 
-**Agent-Submitted Verification** — agent collects the proof and submits it:
-
-![Agent-Submitted Verification Flow](content/images/verification-flow.png)
-
-**Provider-Managed Verification** — proof delivered directly to the provider (e.g., Clear embedded in a provider-hosted apply flow):
-
-![Provider-Managed Verification Flow](content/images/verification-flow-provider-managed.png)
+**Identity Verification** — For roles that require verified human identity (finance, government, healthcare), OJCP integrates with third-party verifiers like ID.me and Clear. Two delivery models are supported: **provider-managed** (verification embedded in the apply form, proof delivered directly to the provider via callback) and **agent-submitted** (agent collects the proof and includes it in `submit_application`). In both cases a cryptographic proof is validated — no raw PII flows through the protocol.
 
 ### How it works
 
@@ -194,48 +201,52 @@ When the agent applies on behalf of a candidate, OJCP enforces a consent gate be
 | Standard | Relationship |
 |---|---|
 | MCP | OJCP tools are valid MCP tools — callable by any MCP client |
-| WebMCP | Imperative API (`document.modelContext.registerTool()`) and declarative API (form `toolname`/`tooldescription` attributes) |
+| WebMCP | Imperative API (`document.modelContext.registerTool()`) and declarative form annotations |
+| RFC 9421 / Web Bot Auth | HTTP Message Signatures provide verifiable agent identity (see Agent Identity) |
 | schema.org/JobPosting | OJCP extends it; existing structured data stays valid |
-| OpenAPI 3.1 | REST endpoints documented in OpenAPI; registry validates conformance |
 | Indeed / Zip XML Feeds | OJCP layers over existing feeds via adapter; no replacement required |
 
 ---
 
-## Status
+## Project status
 
-This is **Draft v0.1**. The spec is open for community feedback before stabilization.
+**Draft v0.1 — a living draft.** Accepted RFCs land in 0.1; a versioned release will be cut once a batch of changes is ready to migrate to together. Track changes in [CHANGELOG.md](CHANGELOG.md).
 
-| Phase | Milestone | Target |
-|---|---|---|
-| **0.1** | Draft spec + Recruitics reference implementation | Q1 2026 |
-| **0.2** | First external partner integration | Q2 2026 |
-| **0.3** | Registry MVP + browser agent pilot | Q3 2026 |
-| **1.0** | Stable spec; 10+ verified providers | Q4 2026 |
+Shipped:
+
+- ✅ v0.1 draft specification and JSON Schemas, published at [spec.ojcp.dev](https://spec.ojcp.dev/)
+- ✅ Reference provider live at [ojcp.dev](https://ojcp.dev)
+- ✅ Nine-seat founding steering committee seated ([GOVERNANCE.md](GOVERNANCE.md))
+- ✅ **RFC 0001** — verifiable agent identity via RFC 9421 — accepted and specified
+- ✅ Conformance suite ([ojcp-org/conformance](https://github.com/ojcp-org/conformance)) and provider registry ([ojcp-org/registry](https://github.com/ojcp-org/registry))
+- ✅ First independent provider (FoundRole) live and listed in [ADOPTERS.md](ADOPTERS.md)
+
+In progress:
+
+- 🚧 RFC 0002 (`official_job_url`) and RFC 0003 (action-bound user mandates) in the RFC pipeline
+- 🔜 Growing the registry and adopter set; a consent/authorization RFC to finalize the `user_mandate` claim set
 
 ---
 
 ## Contributing
 
-We are actively seeking co-contributors from:
+OJCP is built in the open, and external contributions are already shaping it — the RFCs and providers above came from the community. We especially welcome:
 
-- **Job boards & aggregators** — Indeed, Zip, LinkedIn, Greenhouse, Lever, Workday, iCIMS, SmartRecruiters
-- **Agent platform developers** — browser vendors, AI assistant teams, recruiting AI startups
-- **Enterprise employers** — high-volume hiring orgs who want their ATS reachable by candidate agents
+- **Job boards, aggregators & ATS vendors** who want their inventory reachable by candidate agents
+- **Agent & browser platform developers** building the candidate-side experience
+- **Employers** with high-volume hiring who want their apply flows agent-ready
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the RFC process and how to propose changes.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md) for the RFC process, DCO sign-off, and licensing. Propose changes as an [RFC](docs/rfcs/), validate implementations with the [conformance suite](https://github.com/ojcp-org/conformance), and add yourself to [ADOPTERS.md](ADOPTERS.md).
 
-Discuss: `ojcp-discuss@recruitics.com`
-
----
-
-## Author
-
-**Austin Anderson** — CTO, Recruitics
-
-OJCP is proposed as an open standard. See [GOVERNANCE.md](GOVERNANCE.md) for the steering model and Recruitics' role.
+Discuss: [GitHub Discussions](https://github.com/ojcp-org/ojcp/discussions) · `ojcp-discuss@recruitics.com`
 
 ---
 
 ## License
 
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+Dual-licensed by content type (see [CONTRIBUTING.md](CONTRIBUTING.md#licensing)):
+
+- **Specification, schemas, examples, docs** — [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+- **Code, tooling, CI** — [Apache License 2.0](LICENSE)
+
+OJCP was authored by **Austin Anderson** (CTO, Recruitics) and is now governed by its [steering committee](GOVERNANCE.md).
