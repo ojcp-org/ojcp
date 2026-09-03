@@ -8,6 +8,7 @@
   "properties": {
     "ojcp_version": {
       "type": "string",
+      "enum": ["0.1"],
       "description": "The OJCP specification version."
     },
     "total_results": {

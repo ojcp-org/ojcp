@@ -8,6 +8,7 @@
   "properties": {
     "ojcp_version": {
       "type": "string",
+      "enum": ["0.1"],
       "description": "The OJCP specification version."
     },
     "error_code": {
@@ -25,9 +26,17 @@
         "rate_limited",
         "unauthorized",
         "forbidden",
-        "provider_error"
+        "provider_error",
+        "agent_signature_missing",
+        "agent_signature_invalid",
+        "agent_key_not_found",
+        "agent_digest_mismatch",
+        "agent_algorithm_unsupported",
+        "agent_signature_expired",
+        "agent_nonce_replayed",
+        "agent_identity_mismatch"
       ],
-      "description": "Machine-readable error code. Verification-specific errors use the verification_errors array in submit_application responses."
+      "description": "Machine-readable error code. Agent identity errors (agent_*) are defined by the Agent Identity section. Verification-specific errors use the verification_errors array in submit_application responses."
     },
     "message": {
       "type": "string",
@@ -35,12 +44,23 @@
     },
     "retry_after_seconds": {
       "type": "integer",
-      "description": "Seconds to wait before retrying. Present when error_code is 'rate_limited'."
+      "description": "Seconds to wait before retrying. REQUIRED when error_code is 'rate_limited'."
     },
     "details": {
       "type": "object",
       "description": "Additional error context. Shape varies by error_code.",
       "additionalProperties": true
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["error_code"],
+        "properties": { "error_code": { "const": "rate_limited" } }
+      },
+      "then": {
+        "required": ["retry_after_seconds"]
+      }
+    }
+  ]
 }

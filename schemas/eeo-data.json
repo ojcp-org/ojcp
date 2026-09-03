@@ -50,6 +50,5 @@
       "description": "ISO 3166-1 alpha-2 country code identifying the regulatory framework these answers were collected under (e.g., 'US', 'CA', 'GB'). Determines which enumerations apply.",
       "default": "US"
     }
-  },
-  "additionalProperties": false
+  }
 }
