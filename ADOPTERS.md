@@ -36,6 +36,7 @@ If your organization is using OJCP at any tier, please open a PR to add yourself
 
 | Organization | Notes | Contact (optional) | Since |
 |--------------|-------|--------------------|-------|
+| reqspace.ai | AI recruiting and job seeker platform. Evaluating a provider manifest over customer career pages, and AgentDeclaration for our candidate-side auto-apply agent. | mike@reqspace.ai | 2026-09 |
 | _Add yours via PR_ | | | |
 
 ---
