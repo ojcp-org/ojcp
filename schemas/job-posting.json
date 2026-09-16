@@ -51,6 +51,16 @@
       "format": "date",
       "description": "Date the posting expires (ISO 8601)."
     },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "A general web URL for the job posting. May point to third-party boards or aggregators."
+    },
+    "official_job_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "The canonical public web URL of the job description page on the employer's official careers site or ATS. Serves as a candidate-facing trust and verification anchor: agents SHOULD verify that its registrable domain matches the provider's verified domain (see Provider Trust / .well-known/ojcp-keys.json)."
+    },
     "employmentType": {
       "type": "string",
       "description": "Type of employment. Standard values: full_time, part_time, contract, internship, temporary. Providers MAY use additional values (e.g., freelance, volunteer, apprenticeship). Note: schema.org uses UPPERCASE — OJCP normalizes to lowercase."
