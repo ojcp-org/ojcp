@@ -1,0 +1,34 @@
+sequenceDiagram
+    participant A as AI Agent
+    participant P as Provider (OJCP endpoint)
+    participant D as Agent Key Directory
+
+    Note over A,D: Signed request
+
+    A->>A: sign request (RFC 9421)<br/>covered: @method @authority @path @query<br/>content-digest, signature-agent
+    A->>P: tool call + Signature-Input / Signature<br/>Signature-Agent + Content-Digest
+
+    Note over A,D: Verification (steps 1-5)
+
+    P->>D: GET /.well-known/http-message-signatures-directory<br/>(HTTPS, SSRF-guarded, no private IPs)
+    D-->>P: JWK Set
+    P->>P: 1. resolve key by RFC 7638 thumbprint (keyid)
+    P->>P: 2. verify signature (alg from key, not wire)
+    P->>P: 3. Content-Digest matches body
+    P->>P: 4. freshness (created/expires, window <= 300s)
+    P->>P: 5. nonce not replayed for this keyid
+
+    Note over A,D: Identity binding (step 6)
+
+    P->>P: registrable domain of agent_id (PSL, incl. PRIVATE)<br/>== Signature-Agent origin
+
+    Note over A,D: Policy (step 7 + required_for)
+
+    alt all checks pass
+        P->>P: agent_id is verified
+        P-->>A: tool result
+    else signature required but missing/invalid
+        P-->>A: error envelope<br/>(agent_signature_missing / _invalid / _expired /<br/>_nonce_replayed / _identity_mismatch / ...)
+    end
+
+    Note over A,P: Session binding — submit_application MUST be<br/>signed by the same verified agent that began it

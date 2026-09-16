@@ -194,6 +194,10 @@ When the agent applies on behalf of a candidate, OJCP enforces a consent gate be
 
 ![Agent Apply Flow](content/images/apply-flow.png)
 
+When an agent proves its identity, the provider verifies the request signature, binds the `agent_id` to the signing domain, and enforces per-context signature policy:
+
+![Agent Identity Verification](content/images/agent-identity.png)
+
 ---
 
 ## Interoperability
