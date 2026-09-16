@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC 0002 accepted** — `url` and `official_job_url` on JobPosting as a candidate-facing trust/verification anchor and web fallback; decision recorded in `docs/decisions/0002-official-job-url.md`. Accepted at the close of the 30-day comment period (2026-09-16). Normative schema/spec implementation to follow.
 - **RFC 0001 accepted** — verifiable agent identity via HTTP Message Signatures (RFC 9421); decision recorded in `docs/decisions/0001-agent-identity.md`. Normative spec/schema implementation to follow.
 - `GOVERNANCE.md` — steering committee structure (7 founding seats), bootstrap period, decision-making, conflict-of-interest policy, patent non-assertion covenant, infrastructure succession plan
 - `CODE_OF_CONDUCT.md` — adopts Contributor Covenant 2.1; bootstrap-period dual-review enforcement

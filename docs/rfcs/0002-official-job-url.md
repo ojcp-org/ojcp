@@ -7,7 +7,7 @@ labels: rfc
 ## RFC: Add `url` and `official_job_url` to `job-posting.json` to prevent recruitment fraud and establish trust anchors
 
 - **Author:** [Radu Stoian, Technical Director at Enhance Media](https://www.linkedin.com/in/radustoian/)
-- **Status:** Draft
+- **Status:** Accepted
 - **Created:** 2026-08-12
 - **Resolves:** [Issue #7](https://github.com/ojcp-org/ojcp/issues/7)
 
@@ -74,6 +74,6 @@ Comment period opens: 2026-08-13
 
 Comment period closes: 2026-09-13 (30 days)
 
-Resolution:
+Resolution: Accepted (2026-09-16, at the close of the 30-day comment period; no blocking comments).
 
-Decision record:
+Decision record: [docs/decisions/0002-official-job-url.md](../decisions/0002-official-job-url.md)
