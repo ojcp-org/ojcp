@@ -30,6 +30,7 @@ If your organization is using OJCP at any tier, please open a PR to add yourself
 |--------------|----------------|--------|-------|
 | Recruitics | Reference provider at https://ojcp.dev | Live | 2026-02 |
 | FoundRole | Anonymous read-only provider at https://www.foundrole.com/ojcp/mcp | Live | 2026-08 |
+| freehire | Anonymous read provider over REST and MCP at https://freehire.me/.well-known/ojcp.json | Live | 2026-09 |
 | _Add yours via PR_ | | | |
 
 ## Evaluating
