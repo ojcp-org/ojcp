@@ -9,7 +9,7 @@
     "ojcp_version": {
       "type": "string",
       "description": "The OJCP specification version this manifest conforms to.",
-      "enum": ["0.1"]
+      "enum": ["0.1", "0.2"]
     },
     "provider": {
       "type": "object",

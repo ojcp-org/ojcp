@@ -2,7 +2,7 @@
 
 **An open standard for agent-consumable job data, built on MCP.**
 
-[![Status: Draft](https://img.shields.io/badge/status-draft%20v0.1-yellow)](https://spec.ojcp.dev/)
+[![Status: Draft](https://img.shields.io/badge/status-draft%20v0.2-yellow)](https://spec.ojcp.dev/)
 [![Spec](https://img.shields.io/badge/spec-spec.ojcp.dev-blue)](https://spec.ojcp.dev/)
 [![License: Apache 2.0](https://img.shields.io/badge/code-Apache%202.0-green)](LICENSE)
 [![License: CC BY 4.0](https://img.shields.io/badge/spec-CC%20BY%204.0-green)](CONTRIBUTING.md#licensing)
@@ -214,11 +214,11 @@ When an agent proves its identity, the provider verifies the request signature, 
 
 ## Project status
 
-**Draft v0.1 — a living draft.** Accepted RFCs land in 0.1; a versioned release will be cut once a batch of changes is ready to migrate to together. Track changes in [CHANGELOG.md](CHANGELOG.md).
+**Draft v0.2 — a living draft.** Accepted changes land in the current draft; the schema namespace stays at `/v0.1/` so existing providers keep validating until a breaking release is cut. Track changes in [CHANGELOG.md](CHANGELOG.md).
 
 Shipped:
 
-- ✅ v0.1 draft specification and JSON Schemas, published at [spec.ojcp.dev](https://spec.ojcp.dev/)
+- ✅ v0.2 draft specification and JSON Schemas, published at [spec.ojcp.dev](https://spec.ojcp.dev/)
 - ✅ Reference provider live at [ojcp.dev](https://ojcp.dev)
 - ✅ Nine-seat founding steering committee seated ([GOVERNANCE.md](GOVERNANCE.md))
 - ✅ Verifiable agent identity (HTTP Message Signatures), specified and implemented in the reference provider
