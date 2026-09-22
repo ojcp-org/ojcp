@@ -14,7 +14,7 @@ Boilerplate: conformance no, copyright no
 </pre>
 
 <pre class='metadata'>
-Text Macro: VERSION 0.1
+Text Macro: VERSION 0.2
 </pre>
 
 <pre class='link-defaults'>
@@ -92,7 +92,7 @@ The manifest MUST be served with `Content-Type: application/json`.
 
 The manifest MUST include:
 
-- `ojcp_version` — The OJCP specification version (currently `"0.1"`).
+- `ojcp_version` — The OJCP specification version (currently `"0.2"`).
 - `provider` — An object with at minimum a `name` field identifying the provider.
 - `tools` — An array of OJCP tool names supported by this provider.
 
@@ -113,7 +113,7 @@ The manifest MAY include:
 <div class="example">
 ```json
 {
-  "ojcp_version": "0.1",
+  "ojcp_version": "0.2",
   "provider": {
     "name": "Acme Corp Careers",
     "employer_id": "acme-corp",
@@ -321,7 +321,7 @@ A `begin_application` response requiring identity verification:
 
 ```json
 {
-  "ojcp_version": "0.1",
+  "ojcp_version": "0.2",
   "application_id": "app_abc123",
   "status": "pending_verification",
   "apply_path": {
@@ -473,7 +473,7 @@ When any OJCP tool call fails, the provider MUST return a standard error envelop
 <div class="example">
 ```json
 {
-  "ojcp_version": "0.1",
+  "ojcp_version": "0.2",
   "error_code": "job_not_found",
   "message": "No job found with ID careers.acme.com:swe-99999.",
   "details": { "job_id": "careers.acme.com:swe-99999" }
@@ -877,7 +877,7 @@ On success, the provider returns HTTP 200 with a JSON body:
 
 ```json
 {
-  "ojcp_version": "0.1",
+  "ojcp_version": "0.2",
   "resume_url": "https://uploads.careers.acme.com/r/abc123def?sig=...",
   "expires_at": "2026-04-30T12:00:00Z",
   "filename": "resume.pdf",
@@ -971,7 +971,7 @@ A signed manifest:
 
 ```json
 {
-  "ojcp_version": "0.1",
+  "ojcp_version": "0.2",
   "provider": { "name": "Acme Corp Careers", "employer_id": "acme-corp" },
   "tools": ["search_jobs", "get_job_detail", "begin_application", "submit_application", "check_application_status"],
   "apply_paths": ["provider_hosted", "ats_direct"],
@@ -1633,7 +1633,7 @@ A `begin_application` response with multiple verification steps — one provider
 
 ```json
 {
-  "ojcp_version": "0.1",
+  "ojcp_version": "0.2",
   "application_id": "app_fin_456",
   "status": "pending_verification",
   "apply_path": {

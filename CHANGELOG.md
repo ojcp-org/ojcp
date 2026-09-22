@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2] - 2026-09-22
+
+Minor version bump. All changes are additive and backward-compatible; the schema
+`$id` namespace stays at `/v0.1/` and `ojcp_version` now accepts both `"0.1"` and
+`"0.2"`, so existing providers keep validating.
+
 ### Added
 
-- **RFC 0002 accepted** — `url` and `official_job_url` on JobPosting as a candidate-facing trust/verification anchor and web fallback; decision recorded in `docs/decisions/0002-official-job-url.md`. Accepted at the close of the 30-day comment period (2026-09-16). Normative schema/spec implementation to follow.
-- **RFC 0001 accepted** — verifiable agent identity via HTTP Message Signatures (RFC 9421); decision recorded in `docs/decisions/0001-agent-identity.md`. Normative spec/schema implementation to follow.
+- **Agent identity** — verifiable `agent_id` via HTTP Message Signatures, specified in the spec's Agent Identity section and implemented in the reference provider. `auth.agent_signatures` on the manifest and optional `user_mandate` on the agent declaration. Decision recorded in `docs/decisions/0001-agent-identity.md`.
+- **`url` and `official_job_url` on JobPosting** — a candidate-facing trust/verification anchor and web fallback, in both `schemas/job-posting.json` and the spec prose. Decision recorded in `docs/decisions/0002-official-job-url.md`.
+- `ojcp_version` accepts `"0.2"` in the manifest and all tool response schemas (0.1 still valid).
 - `GOVERNANCE.md` — steering committee structure (7 founding seats), bootstrap period, decision-making, conflict-of-interest policy, patent non-assertion covenant, infrastructure succession plan
 - `CODE_OF_CONDUCT.md` — adopts Contributor Covenant 2.1; bootstrap-period dual-review enforcement
 - `ADOPTERS.md` — public list of adopters across Steering Members / Implementing / Evaluating tiers
