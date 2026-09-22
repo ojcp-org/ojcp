@@ -83,7 +83,7 @@ See [GOVERNANCE.md](GOVERNANCE.md) for the seat table, term rules, and the RFC d
   logos/members/            # Steering-member logos
 /docs
   proposal.md               # Original proposal
-  rfcs/                     # Change proposals (RFC 0001 agent identity, …)
+  rfcs/                     # Change proposals
   decisions/                # Architecture Decision Records (ADRs)
 GOVERNANCE.md               # Governance charter, steering committee, IP policy
 CONTRIBUTING.md             # How to contribute, RFC process, DCO, licensing
@@ -174,7 +174,7 @@ Discover providers from the [registry](https://github.com/ojcp-org/registry) —
 
 **Candidate Context** — A minimal, consent-scoped candidate profile passed by agents for personalized search and fit scoring. PII-minimized by design.
 
-**Agent Identity** *(RFC 0001, accepted)* — Agents can prove who they are with verifiable request signatures, so providers can distinguish a real, accountable agent from an anonymous scraper without gatekeeping through a central authority. OJCP uses [RFC 9421 HTTP Message Signatures](https://www.rfc-editor.org/rfc/rfc9421) on the [Web Bot Auth](https://developer.chrome.com/docs/ai/web-bot-auth) wire profile: the agent publishes its keys at a signatures directory, signs each request (Ed25519 recommended) and names its key via the `Signature-Agent` header. Providers declare support and which contexts require it under `auth.agent_signatures` in their manifest. A verified identity is a *hint about the agent*, not proof a human authorized the action — for that, an `agent_declaration` can carry an optional user-rooted `user_mandate`. See the Agent Identity section of the [spec](https://spec.ojcp.dev/) and [RFC 0001](docs/rfcs/0001-agent-identity-http-message-signatures.md).
+**Agent Identity** — Agents can prove who they are with verifiable request signatures, so providers can distinguish a real, accountable agent from an anonymous scraper without gatekeeping through a central authority. OJCP uses [HTTP Message Signatures](https://www.rfc-editor.org/rfc/rfc9421) on the [Web Bot Auth](https://developer.chrome.com/docs/ai/web-bot-auth) wire profile: the agent publishes its keys at a signatures directory, signs each request (Ed25519 recommended) and names its key via the `Signature-Agent` header. Providers declare support and which contexts require it under `auth.agent_signatures` in their manifest. A verified identity is a *hint about the agent*, not proof a human authorized the action; for that, an `agent_declaration` can carry an optional user-rooted `user_mandate`. See the Agent Identity section of the [spec](https://spec.ojcp.dev/).
 
 **Agent Declaration** — Agents identify themselves and who they act for on every application initiation. Enables employer audit trails, rate limiting, and abuse prevention.
 
@@ -206,7 +206,7 @@ When an agent proves its identity, the provider verifies the request signature, 
 |---|---|
 | MCP | OJCP tools are valid MCP tools — callable by any MCP client |
 | WebMCP | Imperative API (`document.modelContext.registerTool()`) and declarative form annotations |
-| RFC 9421 / Web Bot Auth | HTTP Message Signatures provide verifiable agent identity (see Agent Identity) |
+| HTTP Message Signatures / Web Bot Auth | Verifiable agent identity (see Agent Identity) |
 | schema.org/JobPosting | OJCP extends it; existing structured data stays valid |
 | Indeed / Zip XML Feeds | OJCP layers over existing feeds via adapter; no replacement required |
 
@@ -221,20 +221,21 @@ Shipped:
 - ✅ v0.1 draft specification and JSON Schemas, published at [spec.ojcp.dev](https://spec.ojcp.dev/)
 - ✅ Reference provider live at [ojcp.dev](https://ojcp.dev)
 - ✅ Nine-seat founding steering committee seated ([GOVERNANCE.md](GOVERNANCE.md))
-- ✅ **RFC 0001** — verifiable agent identity via RFC 9421 — accepted and specified
+- ✅ Verifiable agent identity (HTTP Message Signatures), specified and implemented in the reference provider
+- ✅ Canonical `official_job_url` trust anchor on JobPosting
 - ✅ Conformance suite ([ojcp-org/conformance](https://github.com/ojcp-org/conformance)) and provider registry ([ojcp-org/registry](https://github.com/ojcp-org/registry))
 - ✅ First independent provider (FoundRole) live and listed in [ADOPTERS.md](ADOPTERS.md)
 
 In progress:
 
-- 🚧 RFC 0002 (`official_job_url`) and RFC 0003 (action-bound user mandates) in the RFC pipeline
-- 🔜 Growing the registry and adopter set; a consent/authorization RFC to finalize the `user_mandate` claim set
+- 🚧 Action-bound user mandates, and a consent/authorization flow to finalize the `user_mandate` claim set
+- 🔜 Growing the registry and adopter set
 
 ---
 
 ## Contributing
 
-OJCP is built in the open, and external contributions are already shaping it — the RFCs and providers above came from the community. We especially welcome:
+OJCP is built in the open, and external contributions are already shaping it. Several of the features and providers above came from the community. We especially welcome:
 
 - **Job boards, aggregators & ATS vendors** who want their inventory reachable by candidate agents
 - **Agent & browser platform developers** building the candidate-side experience

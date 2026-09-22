@@ -5,14 +5,14 @@ sequenceDiagram
 
     Note over A,D: Signed request
 
-    A->>A: sign request (RFC 9421)<br/>covered: @method @authority @path @query<br/>content-digest, signature-agent
+    A->>A: sign request (HTTP Message Signatures)<br/>covered: @method @authority @path @query<br/>content-digest, signature-agent
     A->>P: tool call + Signature-Input / Signature<br/>Signature-Agent + Content-Digest
 
     Note over A,D: Verification (steps 1-5)
 
     P->>D: GET /.well-known/http-message-signatures-directory<br/>(HTTPS, SSRF-guarded, no private IPs)
     D-->>P: JWK Set
-    P->>P: 1. resolve key by RFC 7638 thumbprint (keyid)
+    P->>P: 1. resolve key by JWK thumbprint (keyid)
     P->>P: 2. verify signature (alg from key, not wire)
     P->>P: 3. Content-Digest matches body
     P->>P: 4. freshness (created/expires, window <= 300s)
