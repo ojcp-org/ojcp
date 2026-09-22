@@ -556,6 +556,7 @@ A conforming JobPosting SHOULD include:
 - `skills_required` — Required skills for agent matching
 - `baseSalary` — Compensation information
 - `employmentType` — Type of employment
+- `official_job_url` — Canonical URL of the posting on the employer's official careers site or ATS, usable as a candidate-facing trust anchor
 
 Note: Job posting fields that originate from schema.org (e.g., `employmentType`, `experienceLevel`, `jobLocation`, `baseSalary`) use camelCase to maintain compatibility. OJCP-specific extension fields (e.g., `skills_required`, `team_context`, `urgency`) and tool input parameters (e.g., `experience_level`, `salary_min`) use snake_case. Agents SHOULD handle both conventions.
 
@@ -572,6 +573,11 @@ OJCP-specific extension fields:
 - `hiring_manager` — Name of the hiring manager
 - `remote_policy` — Remote work policy (`on_site`, `hybrid`, `remote`, `flexible`)
 - `agent_notes` — Free-text notes for agent consumption
+- `official_job_url` — The canonical public URL of the posting on the employer's official careers site or ATS
+
+The posting MAY also carry `url`, the general schema.org web URL for the posting. `url` and `official_job_url` serve distinct purposes and SHOULD NOT be conflated: `url` is a general link that MAY point to an aggregator or third-party board, whereas `official_job_url` asserts the canonical source hosted by the employer.
+
+`official_job_url` is a candidate-facing trust anchor. Because a bare URL is spoofable, when a provider serves a signed manifest ([[#provider-trust]]) an agent SHOULD verify that the registrable domain of `official_job_url` matches the provider's verified domain before presenting it as authoritative, and MAY surface it to the candidate as a way to manually confirm a posting's legitimacy or as a fallback when no agent apply path is available. Agents MUST NOT treat `url` as carrying this guarantee.
 
 <div class="example">
 ```json
@@ -583,6 +589,7 @@ OJCP-specific extension fields:
   "employer": { "@type": "Organization", "name": "Acme Corp", "ojcp_employer_id": "acme-corp" },
   "datePosted": "2026-02-28",
   "validThrough": "2026-04-15",
+  "official_job_url": "https://careers.acme.com/jobs/swe-42091",
   "employmentType": "full_time",
   "baseSalary": {
     "@type": "MonetaryAmountDistribution",
