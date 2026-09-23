@@ -199,7 +199,7 @@ When [=Candidate Context=] is provided, the provider SHOULD return personalized 
           "salary_max": { "type": "number" },
           "experience_level": {
             "type": "string",
-            "description": "Standard values: entry, mid, senior, lead, director, executive. Providers MAY accept additional values."
+            "description": "Standard values: intern, entry, mid, senior, staff, principal, lead, director, executive. Providers MAY accept additional values."
           },
           "posted_within_days": { "type": "integer" }
         }
@@ -559,6 +559,13 @@ A conforming JobPosting SHOULD include:
 - `official_job_url` — Canonical URL of the posting on the employer's official careers site or ATS, usable as a candidate-facing trust anchor
 
 Note: Job posting fields that originate from schema.org (e.g., `employmentType`, `experienceLevel`, `jobLocation`, `baseSalary`) use camelCase to maintain compatibility. OJCP-specific extension fields (e.g., `skills_required`, `team_context`, `urgency`) and tool input parameters (e.g., `experience_level`, `salary_min`) use snake_case. Agents SHOULD handle both conventions.
+
+`experienceLevel` defines the standard values `intern`, `entry`, `mid`, `senior`, `staff`, `principal`, `lead`, `director`, and `executive`. The field is open — providers MAY use additional values — but the standard set is what an agent can rely on reading, so a level outside it is effectively invisible to any agent that does not know the provider.
+
+Three of these name levels that cannot be folded into a neighbour without losing what a candidate is searching for:
+
+- `intern` is an internship, not a junior role. A candidate looking for one does not want the other, so collapsing it into `entry` returns the wrong jobs in both directions. A posting SHOULD carry `employmentType: internship` alongside it; the two fields answer different questions — the nature of the engagement, and the seniority it is pitched at.
+- `staff` and `principal` are senior individual-contributor levels. Collapsing them into `senior` makes the IC track invisible: an agent searching for a principal role receives ordinary senior ones.
 
 Note: Enumerated fields such as `employmentType` and `experience_level` define standard values but are intentionally open — providers MAY use additional values (e.g., `freelance`, `volunteer`, `apprenticeship`) and agents SHOULD handle unrecognized values gracefully. OJCP normalizes employment types to lowercase (e.g., `full_time`); schema.org uses UPPERCASE (`FULL_TIME`) — providers SHOULD map accordingly.
 
