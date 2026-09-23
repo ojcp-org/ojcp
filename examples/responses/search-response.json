@@ -46,12 +46,20 @@
       },
       "datePosted": "2026-03-01",
       "employmentType": "full_time",
-      "jobLocation": {
-        "address": {
-          "addressLocality": "Remote",
-          "addressCountry": "US"
+      "jobLocation": [
+        {
+          "address": {
+            "addressLocality": "Remote",
+            "addressCountry": "US"
+          }
+        },
+        {
+          "address": {
+            "addressLocality": "Remote",
+            "addressCountry": "CA"
+          }
         }
-      },
+      ],
       "baseSalary": {
         "currency": "USD",
         "minValue": 155000,

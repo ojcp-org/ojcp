@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`jobLocation` accepts an array of `Place`** — a posting open in more than one location can now state every location the employer accepts, as schema.org itself permits. A single `Place` remains valid, so existing single-location consumers are unaffected. Providers MUST NOT reduce a multi-location posting to one of its locations. Updated in `schemas/job-posting.json`, `schemas/responses/search-jobs.json`, the JobPosting section of `spec/ojcp-v0.1.bs`, and `examples/responses/search-response.json`. Reported with coverage figures in [#19](https://github.com/ojcp-org/ojcp/issues/19).
+
 ## [0.2] - 2026-09-22
 
 Minor version bump. All changes are additive and backward-compatible; the schema

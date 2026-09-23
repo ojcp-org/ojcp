@@ -70,21 +70,15 @@
       "description": "Required experience level. Standard values: entry, mid, senior, lead, director, executive. Providers MAY use additional values."
     },
     "jobLocation": {
-      "type": "object",
-      "properties": {
-        "@type": {
-          "type": "string",
-          "const": "Place"
-        },
-        "address": {
-          "type": "object",
-          "properties": {
-            "addressLocality": { "type": "string" },
-            "addressRegion": { "type": "string" },
-            "addressCountry": { "type": "string" }
-          }
+      "description": "Where the role is based: a single Place, or an array of Place when the employer accepts the role in more than one location. schema.org/JobPosting already permits both. Providers MUST NOT reduce a multi-location role to one of its locations — that asserts a restriction the employer never stated. Omit the field only when no location is known.",
+      "oneOf": [
+        { "$ref": "#/$defs/Place" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Place" },
+          "minItems": 1
         }
-      }
+      ]
     },
     "baseSalary": {
       "type": "object",
@@ -170,6 +164,23 @@
     }
   },
   "$defs": {
+    "Place": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string",
+          "const": "Place"
+        },
+        "address": {
+          "type": "object",
+          "properties": {
+            "addressLocality": { "type": "string" },
+            "addressRegion": { "type": "string" },
+            "addressCountry": { "type": "string" }
+          }
+        }
+      }
+    },
     "ApplyPath": {
       "type": "object",
       "required": ["type", "supports_agent_submission"],
