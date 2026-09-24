@@ -601,7 +601,11 @@ OJCP-specific extension fields:
 
 The posting MAY also carry `url`, the general schema.org web URL for the posting. `url` and `official_job_url` serve distinct purposes and SHOULD NOT be conflated: `url` is a general link that MAY point to an aggregator or third-party board, whereas `official_job_url` asserts the canonical source hosted by the employer.
 
-`official_job_url` is a candidate-facing trust anchor. Because a bare URL is spoofable, when a provider serves a signed manifest ([[#provider-trust]]) an agent SHOULD verify that the registrable domain of `official_job_url` matches the provider's verified domain before presenting it as authoritative, and MAY surface it to the candidate as a way to manually confirm a posting's legitimacy or as a fallback when no agent apply path is available. Agents MUST NOT treat `url` as carrying this guarantee.
+`official_job_url` is a candidate-facing verification anchor, and MUST be an `https` URL. Its trust is rooted in the provider that serves it: when a provider serves a signed manifest ([[#provider-trust]]) from a verified domain, an agent extends `official_job_url` the same trust it extends that provider. The URL's own registrable domain is NOT the anchor. An employer that publishes through a third-party ATS has a canonical URL on the ATS vendor's domain (for example `acme.myworkdayjobs.com`), which is legitimate and matches neither the employer's nor the provider's domain, so a domain-equality check against the provider would reject valid postings.
+
+Where an employer's legitimate hosts are declared in `employer.official_domains`, an agent MAY corroborate `official_job_url` against that list. Because ATS hosts are shared across tenants, this comparison MUST be at the host level, not the registrable domain. It is a corroboration signal, not proof of employer identity: the employer is not a party to OJCP and attests nothing directly, so a match raises confidence while a mismatch does not by itself invalidate the posting.
+
+On a URL it cannot corroborate, an agent SHOULD lower its confidence or surface the URL for the candidate to confirm, and MUST NOT discard the posting on that basis alone. It MAY surface `official_job_url` as a way to manually confirm a posting's legitimacy or as a fallback when no agent apply path is available. Agents MUST NOT treat `url` as carrying any of these properties.
 
 <div class="example">
 ```json
