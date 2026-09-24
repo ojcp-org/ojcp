@@ -185,6 +185,7 @@ When [=Candidate Context=] is provided, the provider SHOULD return personalized 
           "state": { "type": "string" },
           "country": { "type": "string" },
           "remote_ok": { "type": "boolean" },
+          "remote_policy": { "type": "array", "items": { "type": "string", "enum": ["on_site", "hybrid", "remote", "flexible"] } },
           "radius_miles": { "type": "number" }
         }
       },
