@@ -67,7 +67,7 @@
     },
     "experienceLevel": {
       "type": "string",
-      "description": "Required experience level. Standard values: entry, mid, senior, lead, director, executive. Providers MAY use additional values."
+      "description": "Required experience level. Standard values: intern, entry, mid, senior, staff, principal, lead, director, executive. intern denotes an internship and is distinct from entry — a candidate searching for one does not want the other. staff and principal are senior individual-contributor levels distinct from senior. Providers MAY use additional values."
     },
     "jobLocation": {
       "type": "object",

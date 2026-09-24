@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`intern`, `staff` and `principal` added to `experienceLevel`'s standard values** — the field was already open, but a level outside the documented set is unreadable to any agent that does not know the provider. `intern` is an internship rather than a junior role; `staff` and `principal` are senior individual-contributor levels that `senior` hides. Updated in `schemas/job-posting.json`, `schemas/tools/search-jobs-input.json`, and the JobPosting and `search_jobs` sections of `spec/ojcp-v0.1.bs`. Reported with distribution figures in [#19](https://github.com/ojcp-org/ojcp/issues/19).
+
 ## [0.2] - 2026-09-22
 
 Minor version bump. All changes are additive and backward-compatible; the schema

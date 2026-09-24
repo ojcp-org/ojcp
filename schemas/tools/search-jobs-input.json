@@ -30,7 +30,7 @@
         "salary_max": { "type": "number" },
         "experience_level": {
           "type": "string",
-          "description": "Standard values: entry, mid, senior, lead, director, executive. Providers MAY accept additional values."
+          "description": "Standard values: intern, entry, mid, senior, staff, principal, lead, director, executive. Providers MAY accept additional values."
         },
         "posted_within_days": { "type": "integer" }
       }
