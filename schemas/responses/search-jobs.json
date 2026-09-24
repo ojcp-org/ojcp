@@ -46,17 +46,15 @@
           "datePosted": { "type": "string", "format": "date" },
           "employmentType": { "type": "string" },
           "jobLocation": {
-            "type": "object",
-            "properties": {
-              "address": {
-                "type": "object",
-                "properties": {
-                  "addressLocality": { "type": "string" },
-                  "addressRegion": { "type": "string" },
-                  "addressCountry": { "type": "string" }
-                }
+            "description": "A single Place, or an array of Place for a role open in more than one location. Mirrors JobPosting.jobLocation.",
+            "oneOf": [
+              { "$ref": "#/$defs/Place" },
+              {
+                "type": "array",
+                "items": { "$ref": "#/$defs/Place" },
+                "minItems": 1
               }
-            }
+            ]
           },
           "baseSalary": {
             "type": "object",
@@ -96,6 +94,25 @@
         }
       },
       "description": "Array of matching job summaries, ranked by relevance."
+    }
+  },
+  "$defs": {
+    "Place": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string",
+          "const": "Place"
+        },
+        "address": {
+          "type": "object",
+          "properties": {
+            "addressLocality": { "type": "string" },
+            "addressRegion": { "type": "string" },
+            "addressCountry": { "type": "string" }
+          }
+        }
+      }
     }
   }
 }

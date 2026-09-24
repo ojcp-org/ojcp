@@ -560,6 +560,29 @@ A conforming JobPosting SHOULD include:
 
 Note: Job posting fields that originate from schema.org (e.g., `employmentType`, `experienceLevel`, `jobLocation`, `baseSalary`) use camelCase to maintain compatibility. OJCP-specific extension fields (e.g., `skills_required`, `team_context`, `urgency`) and tool input parameters (e.g., `experience_level`, `salary_min`) use snake_case. Agents SHOULD handle both conventions.
 
+`jobLocation` accepts either a single `Place` or an array of `Place`. [schema.org's JobPosting](https://schema.org/JobPosting) already permits both, and a role that an employer will fill in more than one place cannot be expressed by a single value. A posting open in several locations SHOULD carry every location the employer accepts.
+
+Providers MUST NOT reduce a multi-location posting to one of its locations. Doing so asserts a geographic restriction the employer never stated, and an agent filtering on that value discards the posting everywhere else it is open. Where no location is known, the field is omitted rather than guessed.
+
+Agents MUST accept both forms. A single `Place` remains valid and is the expected shape for a single-location role, so consumers written against earlier drafts keep working; an agent that reads only the single form will misread a multi-location posting and SHOULD be updated to handle the array.
+
+<div class="example">
+```json
+{
+  "jobLocation": { "@type": "Place", "address": { "addressLocality": "Chicago", "addressRegion": "IL", "addressCountry": "US" } }
+}
+```
+
+```json
+{
+  "jobLocation": [
+    { "@type": "Place", "address": { "addressLocality": "Remote", "addressCountry": "US" } },
+    { "@type": "Place", "address": { "addressLocality": "Remote", "addressCountry": "CA" } }
+  ]
+}
+```
+</div>
+
 Note: Enumerated fields such as `employmentType` and `experience_level` define standard values but are intentionally open — providers MAY use additional values (e.g., `freelance`, `volunteer`, `apprenticeship`) and agents SHOULD handle unrecognized values gracefully. OJCP normalizes employment types to lowercase (e.g., `full_time`); schema.org uses UPPERCASE (`FULL_TIME`) — providers SHOULD map accordingly.
 
 OJCP-specific extension fields:
