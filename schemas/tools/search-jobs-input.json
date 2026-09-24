@@ -16,6 +16,11 @@
         "state": { "type": "string" },
         "country": { "type": "string" },
         "remote_ok": { "type": "boolean" },
+        "remote_policy": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["on_site", "hybrid", "remote", "flexible"] },
+          "description": "Filter to roles matching any of these remote policies (e.g. ['hybrid', 'remote']). Complements remote_ok, which stays meaningful as 'remote or flexible'; use this when the candidate wants a specific policy such as hybrid."
+        },
         "radius_miles": { "type": "number" }
       }
     },

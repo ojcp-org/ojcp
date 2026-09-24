@@ -45,6 +45,11 @@
           },
           "datePosted": { "type": "string", "format": "date" },
           "employmentType": { "type": "string" },
+          "remote_policy": {
+            "type": "string",
+            "enum": ["on_site", "hybrid", "remote", "flexible"],
+            "description": "Remote work policy for this role. Same vocabulary as JobPosting.remote_policy, carried in the search item so an agent can filter and rank on it without an extra get_job_detail call."
+          },
           "jobLocation": {
             "description": "A single Place, or an array of Place for a role open in more than one location. Mirrors JobPosting.jobLocation.",
             "oneOf": [
