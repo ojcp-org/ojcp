@@ -8,7 +8,7 @@
   "properties": {
     "agent_id": {
       "type": "string",
-      "description": "Reverse-domain-notation identifier for the agent (e.g., com.apple.intelligence.jobseeker)."
+      "description": "Reverse-domain-notation identifier for the agent (e.g., com.apple.intelligence.jobseeker). Self-asserted unless the request is signed. A signed request's agent_id MUST be lowercase LDH hostname labels joined by '.', and binds to the Signature-Agent origin when the origin's reversed host prefixes it (spec § Identity Binding). Not enforced here, so unsigned requests are unaffected."
     },
     "agent_version": {
       "type": "string",

@@ -34,6 +34,7 @@
         "agent_algorithm_unsupported",
         "agent_signature_expired",
         "agent_nonce_replayed",
+        "agent_id_malformed",
         "agent_identity_mismatch"
       ],
       "description": "Machine-readable error code. Agent identity errors (agent_*) are defined by the Agent Identity section. Verification-specific errors use the verification_errors array in submit_application responses."

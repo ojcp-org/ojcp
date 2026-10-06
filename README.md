@@ -69,6 +69,7 @@ See [GOVERNANCE.md](GOVERNANCE.md) for the seat table, term rules, and the RFC d
   job-posting.json          # JobPosting JSON schema
   candidate-context.json    # CandidateContext JSON schema
   agent-declaration.json    # AgentDeclaration JSON schema
+  agent-identity.json       # ojcp-agent.json delegated-signer document schema
   eeo-data.json             # EEO data schema (EEOC/OFCCP/GDPR)
   verification-step.json    # VerificationStep schema
   verification-proof.json   # VerificationProof schema
