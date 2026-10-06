@@ -1,0 +1,4 @@
+{
+  "agent_id": "com.acme.agent",
+  "signers": ["https://acme.agentplatform.example"]
+}

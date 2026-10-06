@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **`jobLocation` accepts an array of `Place`** — a posting open in more than one location can now state every location the employer accepts, as schema.org itself permits. A single `Place` remains valid, so existing single-location consumers are unaffected. Providers MUST NOT reduce a multi-location posting to one of its locations. Updated in `schemas/job-posting.json`, `schemas/responses/search-jobs.json`, the JobPosting section of `spec/ojcp-v0.1.bs`, and `examples/responses/search-response.json`. Reported with coverage figures in [#19](https://github.com/ojcp-org/ojcp/issues/19).
+- **Agent identity binding no longer uses the Public Suffix List** (RFC 0001 erratum E1, [#11](https://github.com/ojcp-org/ojcp/issues/11)). A signed `agent_id` binds when the reversed `Signature-Agent` host prefixes it on a label boundary (`wayfarer.ai` → `ai.wayfarer.*`), which closes the hole that let any subdomain claim every `agent_id` under its registrable domain. A verified `agent_id` must be lowercase LDH hostname labels. Providers MUST NOT use an unverified `agent_id` for allowlists, rate limiting or session binding. Updated in the spec's Agent Identity, Error Responses, Security and IANA sections. **Migration:** an agent that signs from a host outside its own namespace — a sibling subdomain such as `keys.eu.wayfarer.ai` signing as `ai.wayfarer.agent`, which bound under the PSL rule — must either sign from `wayfarer.ai` / `agent.wayfarer.ai` or list that origin in `https://agent.wayfarer.ai/.well-known/ojcp-agent.json`.
+
+### Added
+
+- **Delegated agent signing** — `/.well-known/ojcp-agent.json`, served at the host an `agent_id` names, authorizes third-party `Signature-Agent` origins to sign as it. Schema in `schemas/agent-identity.json`, example in `examples/agent-identity.json`.
+- **`agent_id_malformed`** error code, in the spec's error table and `schemas/responses/error.json`.
 
 ## [0.2] - 2026-09-22
 

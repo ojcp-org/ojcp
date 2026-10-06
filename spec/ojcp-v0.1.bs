@@ -520,7 +520,8 @@ Standard error codes:
     <tr><td>`agent_algorithm_unsupported`</td><td>Signature algorithm not accepted, or the wire `alg` conflicts with the resolved key.</td></tr>
     <tr><td>`agent_signature_expired`</td><td>The signature is expired, not yet valid, or its window exceeds the permitted maximum.</td></tr>
     <tr><td>`agent_nonce_replayed`</td><td>The `(keyid, nonce)` pair was already seen within the freshness window.</td></tr>
-    <tr><td>`agent_identity_mismatch`</td><td>The `Signature-Agent` origin does not match the `agent_id` registrable domain.</td></tr>
+    <tr><td>`agent_id_malformed`</td><td>The `agent_id` presented for verification does not match the grammar in [[#agent-id-grammar]].</td></tr>
+    <tr><td>`agent_identity_mismatch`</td><td>The `agent_id` does not bind to the `Signature-Agent` origin by either mechanism in [[#agent-identity-binding]].</td></tr>
   </tbody>
 </table>
 
@@ -1221,16 +1222,89 @@ Auth directory draft and is consumed — not registered — by OJCP.
 
 ## Identity Binding ## {#agent-identity-binding}
 
-The `Signature-Agent` origin MUST correspond to the **registrable domain** of `agent_id` — the
-domain obtained by reversing the reverse-domain identifier and taking its registrable domain per
-the Public Suffix List. For `ai.wayfarer.agent` the registrable domain is `wayfarer.ai`, so
-`Signature-Agent` MUST be on `wayfarer.ai` or a subdomain. The Public Suffix List **including its
-PRIVATE section** MUST be used (using the ICANN-only section would collapse, e.g.,
-`user.github.io` to `github.io` and let any `github.io` agent bind another's `agent_id`). Both the
-`agent_id`-derived domain and the `Signature-Agent` host MUST be normalized to their A-label
-(punycode) form and lowercased before comparison. This binding is what prevents an attacker from
-hosting keys on a domain they control while claiming another party's `agent_id`. (Note: this
-"registrable domain" is unrelated to the `@authority` covered component in
+Proving a signature proves control of the `Signature-Agent` origin. Binding is what makes that
+proof say something about `agent_id`: without it, any origin could sign and declare any
+identifier. Authority follows the DNS hierarchy — whoever controls a host controls every name
+beneath it — and an `agent_id` binds to an origin in exactly two ways, checked in this order.
+
+### Agent ID Grammar ### {#agent-id-grammar}
+
+An `agent_id` presented for verification MUST match:
+
+```
+agent-id = label 1*( "." label )                 ; at least two labels
+label    = let-dig [ *61( let-dig / "-" ) let-dig ]
+let-dig  = %x61-7A / DIGIT                       ; a-z / 0-9, lowercase only
+```
+
+and MUST NOT exceed 253 octets. Each label is a lowercase LDH hostname label ([[RFC1123]]
+§2.1); internationalized labels appear only in A-label (`xn--`) form. Providers MUST reject a
+non-conforming `agent_id` with `agent_id_malformed` and MUST NOT normalize it (no case folding,
+no IDNA conversion, no trimming): every comparison in this section is byte-exact.
+
+The grammar is that of a hostname because [[#agent-binding-delegated]] resolves the identifier
+as one. It is enforced on the verification path only; unsigned requests are unaffected.
+
+### Namespace Binding ### {#agent-binding-namespace}
+
+Let *host* be the `Signature-Agent` origin's host, lowercased, and let *namespace* be its labels
+in reverse order joined by `.`. The `agent_id` binds when it equals *namespace* or begins with
+*namespace* followed by `.`. IP-literal hosts never bind.
+
+<table class="data">
+  <thead>
+    <tr><th>`Signature-Agent` host</th><th>`agent_id`</th><th>Binds</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`agent.wayfarer.ai`</td><td>`ai.wayfarer.agent`</td><td>Yes — exact</td></tr>
+    <tr><td>`wayfarer.ai`</td><td>`ai.wayfarer.agent`</td><td>Yes — a host vouches for names beneath it</td></tr>
+    <tr><td>`evil.wayfarer.ai`</td><td>`ai.wayfarer.agent`</td><td>No — a child cannot claim its parent's names</td></tr>
+    <tr><td>`alice.github.io`</td><td>`io.github.bob.agent`</td><td>No — siblings cannot claim each other's names</td></tr>
+    <tr><td>`wayfarer.ai`</td><td>`ai.wayfarerx.agent`</td><td>No — prefixes match on label boundaries</td></tr>
+  </tbody>
+</table>
+
+This is the rule the MCP Registry applies to `com.example.*` names, applied here at request time
+instead of publish time. Because authority only ever flows from a host to names beneath it, no
+Public Suffix List lookup is needed: a tenant of a shared host (`alice.github.io`) can claim only
+its own names, and the only party able to claim names under a shared host is that host's
+operator, who already controls every subdomain's DNS.
+
+### Delegated Binding ### {#agent-binding-delegated}
+
+An agent whose keys are hosted by a third party — a signing service or an agent platform
+operating on its customer's behalf — signs from an origin outside its own namespace. The domain
+the `agent_id` names authorizes that origin explicitly.
+
+When [[#agent-binding-namespace]] does not hold, the provider MUST fetch an Agent Identity
+Document from `https://` + the `agent_id`'s labels in reverse order + `/.well-known/ojcp-agent.json`
+(for `com.acme.agent`, `https://agent.acme.com/.well-known/ojcp-agent.json`). The binding holds
+only if the document is a valid Agent Identity Document whose `agent_id` equals the presented
+`agent_id` and whose `signers` array contains the `Signature-Agent` origin. Origins are compared
+as ASCII serializations per [[RFC6454]] §6.2 (`https://host[:port]`, lowercase, no trailing
+slash).
+
+<div class="example">
+```json
+{
+  "agent_id": "com.acme.agent",
+  "signers": ["https://acme.agentplatform.example"]
+}
+```
+</div>
+
+The document is served by the host the `agent_id` names, never by the signer, so only the party
+controlling that host can authorize a signer for the identifier. The fetch is triggered by
+attacker-chosen input and MUST satisfy every SSRF requirement in [[#agent-key-discovery]].
+Providers SHOULD cache the document under the guidance of [[#trust-jwks]]; removing an origin
+from `signers` revokes it once cached copies expire. A missing, unreachable, oversized or
+invalid document means the binding does not hold.
+
+Providers MUST NOT fetch the Agent Identity Document when the namespace binding already holds,
+and MUST NOT consult any other location for it.
+
+Neither mechanism consults the Public Suffix List. (Note: the host in this section is the
+`Signature-Agent` origin's, unrelated to the `@authority` covered component in
 [[#agent-signing-profile]], which is the request's own host.)
 
 ## Verification ## {#agent-verification}
@@ -1242,20 +1316,28 @@ A provider that accepts a signed request MUST, in order:
 3. Verify `Content-Digest` matches the received (or empty) body.
 4. Verify freshness: `created` and `expires` MUST both be present; `created` MUST NOT be in the future beyond the clock-skew tolerance (RECOMMENDED ≤ 60s); `expires` MUST NOT be in the past; and the window (`expires` minus `created`) MUST NOT exceed 300s.
 5. Verify the `nonce` has not been seen for this `keyid` within the freshness window. Providers MUST maintain a replay cache retaining each `(keyid, nonce)` at least until its `expires`; because the window is capped at 300s (step 4) the cache is bounded. [[RFC9421]] defines `nonce` but leaves replay detection to the application.
-6. Verify the identity binding ([[#agent-identity-binding]]).
-7. Treat `agent_id` as **verified** only if all of the above pass.
+6. Verify `agent_id` against the grammar ([[#agent-id-grammar]]).
+7. Verify the identity binding: [[#agent-binding-namespace]], else [[#agent-binding-delegated]].
+8. Treat `agent_id` as **verified** only if all of the above pass.
 
 On any failure the provider MUST return the standard OJCP error envelope ([[#tool-errors]]) with
 one of the agent-signature error codes registered in [[#tool-errors]]: `agent_signature_missing`,
 `agent_signature_invalid`, `agent_key_not_found`, `agent_digest_mismatch`,
 `agent_algorithm_unsupported`, `agent_signature_expired`, `agent_nonce_replayed`,
-`agent_identity_mismatch` — and MUST NOT process the request as if the identity were verified.
+`agent_id_malformed`, `agent_identity_mismatch` — and MUST NOT process the request as if the
+identity were verified. A binding that fails by either mechanism, including an unavailable or
+invalid Agent Identity Document, is reported as `agent_identity_mismatch`.
 When a required context (see [[#agent-manifest-policy]]) is called without a valid signature, the
 provider MUST NOT fall back to unsigned processing.
 
 With a verified identity, providers SHOULD bind the apply session to the signer: a
 `submit_application` whose verified signer differs from the `begin_application` signer for the
 same session SHOULD be rejected.
+
+An `agent_id` on a request that does not complete the steps above — an unsigned request, in
+practice — is self-asserted. Providers MAY record it for audit, and MUST then record it as
+unverified. Providers MUST NOT use an unverified `agent_id` for allowlists, rate limiting,
+session binding, or any other access decision.
 
 ## Manifest Declaration ## {#agent-manifest-policy}
 
@@ -1291,7 +1373,7 @@ Permissionless unsigned access SHOULD remain available for anonymous `search_job
 For an agent acting on behalf of an individual (who does not control a domain), identity is two
 facts established by two keys:
 
-1. **Platform attestation** — [[#agent-signing-profile]] through [[#agent-verification]], signed with the *platform's* key. The `agent_id` identifies the platform (e.g., `ai.northstar.assistant`, whose registrable domain — and therefore `Signature-Agent` origin — is `northstar.ai`). This proves *which software* is calling; it does not establish user authority.
+1. **Platform attestation** — [[#agent-signing-profile]] through [[#agent-verification]], signed with the *platform's* key. The `agent_id` identifies the platform (e.g., `ai.northstar.assistant`, signed from `https://northstar.ai`, whose namespace `ai.northstar` it falls under — [[#agent-binding-namespace]]). This proves *which software* is calling; it does not establish user authority.
 2. **User authorization** — an OPTIONAL `user_mandate` carried in the `AgentDeclaration`: a credential **signed by a key the user controls** that endorses the agent's signing key (a key-binding) and is bound to a hash of the specific action, realized as an SD-JWT Verifiable Credential so the agent can prove *"an authorized user of this platform mandated action X"* without disclosing *which* human unless the provider requires it.
 
 Normative rules:
@@ -1903,7 +1985,7 @@ Agents MUST NOT retry before the indicated `Retry-After` / `retry_after_seconds`
 
 ## Employer Controls ## {#security-employer}
 
-- Providers MAY require [=Agent Declaration=] and allowlist specific agent IDs.
+- Providers MAY require [=Agent Declaration=] and allowlist specific agent IDs. An allowlist MUST match only verified agent IDs ([[#agent-verification]]).
 - All agent-initiated application events SHOULD be logged with agent identity and timestamp.
 - Providers MAY disable `supports_agent_submission` on any [=apply path=] at any time.
 
@@ -1925,7 +2007,7 @@ Agents MUST NOT retry before the indicated `Retry-After` / `retry_after_seconds`
 - Providers MUST validate the `aud` claim to prevent cross-provider proof replay.
 - Providers MUST validate that the `nonce` claim matches the expected `application_id` to prevent replay attacks.
 - Error responses and `warnings` arrays MUST NOT include candidate PII. Field names are acceptable; field values are not.
-- Session tokens MUST be cryptographically random with a minimum of 256 bits of entropy. Session tokens MUST have an expiration time (RECOMMENDED 30 minutes). Providers SHOULD bind session tokens to the originating `agent_id` and reject `submit_application` calls from a different agent than the one that called `begin_application`. The `application_id` MUST NOT be sequential or predictable — providers SHOULD use UUIDv4 or equivalent.
+- Session tokens MUST be cryptographically random with a minimum of 256 bits of entropy. Session tokens MUST have an expiration time (RECOMMENDED 30 minutes). Providers SHOULD bind session tokens to the originating verified `agent_id` and reject `submit_application` calls from a different verified agent than the one that called `begin_application`; an unverified `agent_id` MUST NOT be used for this binding ([[#agent-verification]]). The `application_id` MUST NOT be sequential or predictable — providers SHOULD use UUIDv4 or equivalent.
 
 # Interoperability # {#interop}
 
@@ -1979,7 +2061,7 @@ OJCP schemas permit additional properties beyond those defined in this specifica
 
 # IANA Considerations # {#iana}
 
-This specification registers two well-known URIs per [[RFC8615]]:
+This specification registers three well-known URIs per [[RFC8615]]:
 
 <table class="data">
   <thead>
@@ -1988,6 +2070,7 @@ This specification registers two well-known URIs per [[RFC8615]]:
   <tbody>
     <tr><td>`ojcp.json`</td><td>OJCP community</td><td>[[#manifest-discovery]]</td></tr>
     <tr><td>`ojcp-verifier.json`</td><td>OJCP community</td><td>[[#identity-discovery]]</td></tr>
+    <tr><td>`ojcp-agent.json`</td><td>OJCP community</td><td>[[#agent-binding-delegated]]</td></tr>
   </tbody>
 </table>
 

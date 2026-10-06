@@ -39,6 +39,8 @@ jobs:
           ajv validate -s schemas/job-posting.json -d examples/job-posting.json --spec=draft2020 -c ajv-formats
           echo "Validating examples/search-response.json"
           ajv validate -s schemas/responses/search-jobs.json -d examples/responses/search-response.json --spec=draft2020 -c ajv-formats
+          echo "Validating examples/agent-identity.json"
+          ajv validate -s schemas/agent-identity.json -d examples/agent-identity.json --spec=draft2020 -c ajv-formats
 
   build-spec:
     name: Build Bikeshed spec

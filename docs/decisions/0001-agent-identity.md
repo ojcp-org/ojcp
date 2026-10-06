@@ -40,6 +40,16 @@ A bespoke OJCP key directory, platform-key-signed `acting_on_behalf_of` as deleg
 OAuth client-credentials/bearer tokens, and signing the `AgentDeclaration` JSON blob — all
 evaluated and rejected in RFC 0001's *Alternatives considered* section.
 
+## Amendments
+
+- **2026-10-06 — Identity binding erratum ([#11](https://github.com/ojcp-org/ojcp/issues/11)).**
+  The PSL-based registrable-domain binding is replaced by namespace binding (the reversed
+  `Signature-Agent` host prefixes `agent_id`) plus an optional delegated binding via
+  `/.well-known/ojcp-agent.json` at the host the `agent_id` names. Adds `agent_id_malformed`
+  and a MUST against using unverified identifiers for access decisions. The wire format change
+  is additive; it tightens verification and leaves unsigned flows unaffected. Recorded as RFC
+  0001 erratum E1.
+
 ## Recusal note
 
 The author of this RFC (Austin Anderson) is also the sole seated steering-committee member

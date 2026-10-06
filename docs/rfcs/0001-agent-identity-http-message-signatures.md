@@ -307,6 +307,31 @@ today's behavior (unauthenticated, anonymous-tier results). Existing flows are u
   signer differs from the `begin_application` signer, and MUST account for MCP session
   resumption / connection reuse when enforcing that continuity.
 
+### Errata
+
+**E1 — Identity binding no longer uses the Public Suffix List ([#11](https://github.com/ojcp-org/ojcp/issues/11)).**
+The binding in §3 and under *Key-directory spoofing* / *Authority-mapping ambiguity* above is
+superseded by spec § Identity Binding. Reversing `agent_id` to a registrable domain was ambiguous
+for hyphenated, leading-digit and IDN labels, added a PSL dependency with no freshness rule, and
+let any subdomain of a registrable domain claim every `agent_id` under it. In its place:
+
+- **Namespace binding.** The reversed `Signature-Agent` host must prefix `agent_id` on a label
+  boundary. Authority flows from a host to names beneath it and never upward, which closes the
+  subdomain hole without a PSL lookup. This is the MCP Registry's `com.example.*` rule, applied
+  at request time.
+- **Delegated binding.** An agent signing from a third-party origin is authorized by an
+  `/.well-known/ojcp-agent.json` document served at the host its `agent_id` names, listing
+  permitted `signers`. The document lives at the *named* host, not the signer, so only the
+  name's owner can authorize a signer.
+- **Grammar.** A verified `agent_id` is lowercase LDH hostname labels, rejected with the new
+  `agent_id_malformed` error rather than normalized.
+- **Unverified identifiers.** An unverified `agent_id` MAY be audited, flagged as unverified,
+  and MUST NOT drive allowlists, rate limits or session binding.
+
+Issue #11 first proposed serving the declaration at the `Signature-Agent` origin itself. That
+form was rejected in review: nothing constrained which identifiers an origin could declare, so
+any domain could claim any `agent_id` as verified.
+
 ---
 
 ### For maintainers — comment period and resolution

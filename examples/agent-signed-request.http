@@ -1,6 +1,6 @@
 # Example: an RFC 9421-signed OJCP agent request (see the Agent Identity spec section).
-# The Signature-Agent origin (agent.wayfarer.ai) must match the authority of the
-# agent_id (ai.wayfarer.agent -> wayfarer.ai) per the Public Suffix List.
+# The agent_id (ai.wayfarer.agent) binds to the Signature-Agent origin because the
+# origin's reversed host (agent.wayfarer.ai -> ai.wayfarer.agent) prefixes it.
 # The signing key is published as a JWKS at:
 #   https://agent.wayfarer.ai/.well-known/http-message-signatures-directory
 # keyid is the base64url RFC 7638 JWK thumbprint of that key.
