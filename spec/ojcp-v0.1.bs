@@ -179,9 +179,11 @@ Search for open job opportunities. Returns a ranked list of jobs matching the pr
 
 **Required input:** `query` (string)
 
-**Optional input:** `location`, `filters`, `candidate_context`, `pagination`
+**Optional input:** `location`, `filters`, `candidate_context`, `agent_declaration`, `pagination`
 
 When [=Candidate Context=] is provided, the provider SHOULD return personalized results including `fit_score` and `fit_rationale` for each result.
+
+When an [=Agent Declaration=] is provided, the provider MAY use the declared `agent_id` to return jobs restricted to that agent, subject to [[#search-visibility]].
 
 <div class="example">
 ```json
@@ -223,6 +225,7 @@ When [=Candidate Context=] is provided, the provider SHOULD return personalized 
         }
       },
       "candidate_context": { "$ref": "https://ojcp.dev/schemas/v0.1/candidate-context.json" },
+      "agent_declaration": { "$ref": "https://ojcp.dev/schemas/v0.1/agent-declaration.json" },
       "pagination": {
         "type": "object",
         "properties": {
@@ -238,6 +241,47 @@ When [=Candidate Context=] is provided, the provider SHOULD return personalized 
 </div>
 
 **Response:** Returns `ojcp_version`, `query`, `total_results`, `returned`, `offset`, and a `jobs` array. Each job includes core fields (`ojcp_id`, `title`, `employer`, `datePosted`) plus summary data. When [=Candidate Context=] was provided, each job includes `fit_score` (0.0–1.0) and `fit_rationale`. Each job MAY include an `attribution_ref` ([=attribution reference=]; see [[#attribution]]).
+
+### Agent-Scoped Visibility ### {#search-visibility}
+
+A provider MAY limit which callers see a job by setting the job's <dfn>visibility</dfn> block on its [[#schema-job-posting]]. The block has two fields:
+
+- `tier` — one of:
+    - `public` (the default) — returned to all callers, as when no `visibility` block is present.
+    - `restricted` — returned only when the request carries a verified `agent_declaration` whose `agent_id` is in `audience`.
+    - `private` — as `restricted`, and the caller MUST additionally hold the provider-granted `restricted_feed` scope ([[#agent-manifest-policy]]). The existence of a `private` job MUST NOT be disclosed to unauthorized callers.
+- `audience` — an array of `agent_id`s permitted to see the job when `tier` is `restricted` or `private`. Matching is performed server-side only, against the verified identity.
+
+<div class="example">
+```json
+"visibility": {
+  "tier": "restricted",
+  "audience": ["ai.wayfarer.agent", "ai.northstar.assistant"]
+}
+```
+</div>
+
+The declared `agent_id` MUST be verified per [[#agent-verification]] before any `restricted` or `private` job is returned. An absent, unsigned, or unverifiable `agent_declaration` MUST be treated as anonymous, and an anonymous caller MUST receive only `public` jobs. A provider that gates any part of its feed MUST list `restricted_feed` in `auth.agent_signatures.required_for` ([[#agent-manifest-policy]]) so agents know a signed request is required. A provider grants a partner agent the `restricted_feed` scope through its existing allowlist or onboarding mechanism ([[#security-employer]]); possession of the scope, together with a verified identity, is what unlocks `private` jobs.
+
+Providers:
+
+- MUST evaluate `visibility` server-side, and MUST NOT return `restricted` or `private` jobs to callers that do not satisfy the audience and scope requirements against a verified identity.
+- MUST make `total_results` reflect only the set of jobs visible to the caller, and MUST NOT leak the count, existence, or any field of non-visible jobs to unauthorized callers.
+- MUST count only jobs visible to the caller in `get_employer_context`'s `open_roles_count` and in any other count or aggregate of jobs they return.
+- MUST answer a `get_job_detail` or `begin_application` request whose `job_id` names a job not visible to the caller exactly as for a nonexistent job, with a `job_not_found` error ([[#tool-errors]]), so that the response does not reveal that the job exists.
+- MUST NOT return `visibility.audience` in `search_jobs` or `get_job_detail` responses, since it would reveal other agents' identities. Returning `visibility.tier` is OPTIONAL.
+- MUST ignore a `visibility` block they do not support and treat the job as `public`, for forward compatibility.
+
+Agents:
+
+- SHOULD sign `search_jobs` requests ([[#agent-identity]]) and include an `agent_declaration` when they expect access to a provider's restricted inventory.
+- MUST NOT treat the absence of a job as proof that it does not exist.
+
+Visibility gating narrows who sees a job; it MUST NOT become a tool for opaque or discriminatory gatekeeping:
+
+- Gating MUST be based on the agent's identity and the provider's relationship with it, never on characteristics of the candidate the agent represents. A provider MUST NOT vary `visibility` by protected-class or protected-class-proxy attributes of candidates.
+- Restricting a job to an `audience` MUST NOT be used to evade equal-opportunity advertising obligations. Providers remain responsible for their own regulatory compliance regardless of feed segmentation.
+- Restriction is an explicit, opt-in provider choice for a specific job; absent a `visibility` block, a job is `public`.
 
 ## `get_job_detail` ## {#tool-get-job-detail}
 
@@ -267,6 +311,8 @@ Retrieve full details for a specific job posting, including responsibilities, qu
 
 **Response:** Returns `ojcp_version` and a full `job` object conforming to the JobPosting schema. When `include_employer_context` is true, includes an `employer_context` object. When [=Candidate Context=] was provided, includes `fit_score` and `fit_rationale`. MAY include an `attribution_ref` ([=attribution reference=]; see [[#attribution]]).
 
+A job not visible to the caller under [[#search-visibility]] MUST be answered exactly as a nonexistent job, with `job_not_found`. The returned `job` MUST NOT include `visibility.audience`.
+
 ## `get_employer_context` ## {#tool-get-employer-context}
 
 Retrieve contextual information about an employer — culture, team structure, benefits, and hiring practices.
@@ -289,7 +335,7 @@ Retrieve contextual information about an employer — culture, team structure, b
 ```
 </div>
 
-**Response:** Returns `ojcp_version`, `employer_id`, `name`, and optional fields including `description`, `culture_context`, `industries`, `hq_location`, `benefits`, `hiring_process`, and `open_roles_count`.
+**Response:** Returns `ojcp_version`, `employer_id`, `name`, and optional fields including `description`, `culture_context`, `industries`, `hq_location`, `benefits`, `hiring_process`, and `open_roles_count`. `open_roles_count` counts only jobs visible to the caller ([[#search-visibility]]).
 
 ## `begin_application` ## {#tool-begin-application}
 
@@ -336,6 +382,8 @@ Providers SHOULD require [=Agent Declaration=] and MAY reject requests without a
 **Response:** Returns `ojcp_version`, `application_id`, `status` (`initiated`, `pending_submission`, or `pending_verification`), and an `apply_path` descriptor with `type`, `required_fields`, `url`, and `supports_agent_submission`. When `status` is `pending_verification`, includes `verification_steps` — an array of [=Verification Steps=] the candidate must complete before the application can proceed — and `verification_deadline`, an ISO 8601 timestamp after which incomplete verifications cause the application to expire (see [[#identity-async-deadline]]). May include `session_token` for multi-step flows, `expires_at`, and `screening_questions` — an array of questions the candidate must answer, each with `question_id`, `question_text`, `answer_type`, and optional `options`. Questions MAY include validation constraints: `min_length`/`max_length` for text, `pattern` (regex) for format validation, and `min`/`max` for number and date answers. Agents include the answers in `submit_application`'s `application_data.answers` keyed by `question_id`.
 
 A provider that accepts [=user mandates=] for `submit_application` MUST include `mandate_nonce`, an unpredictable single-use value the agent binds into the mandate's [=action statement=] (see [[#mandate-nonce]]).
+
+A `begin_application` request for a job not visible to the caller under [[#search-visibility]] MUST be answered exactly as for a nonexistent job, with `job_not_found`.
 
 A provider that declares attribution support establishes the application's attribution when it handles `begin_application`, and MAY report the outcome in an `attribution` object (`method`, and `referred_by` where applicable). See [[#attribution]].
 
@@ -623,7 +671,9 @@ OJCP-specific extension fields:
 - `department` — Department or business unit
 - `hiring_manager` — Name of the hiring manager
 - `remote_policy` — Remote work policy (`on_site`, `hybrid`, `remote`, `flexible`)
+- `eligibility` — Hard eligibility gates (visa sponsorship, relocation, security clearance); see [[#schema-job-posting-eligibility]]
 - `agent_notes` — Free-text notes for agent consumption
+- `visibility` — Which callers may see the job in `search_jobs` (`tier`: `public`, `restricted`, `private`; `audience`: permitted `agent_id`s). Absent means `public`. See [[#search-visibility]].
 - `official_job_url` — The canonical public URL of the posting on the employer's official careers site or ATS
 
 The posting MAY also carry `url`, the general schema.org web URL for the posting. `url` and `official_job_url` serve distinct purposes and SHOULD NOT be conflated: `url` is a general link that MAY point to an aggregator or third-party board, whereas `official_job_url` asserts the canonical source hosted by the employer.
@@ -666,6 +716,41 @@ On a URL it cannot corroborate, an agent SHOULD lower its confidence or surface 
       "supports_agent_submission": true
     }
   ]
+}
+```
+</div>
+
+### Eligibility Gates ### {#schema-job-posting-eligibility}
+
+A JobPosting MAY carry an `eligibility` object describing the <dfn>hard eligibility gates</dfn> of the role: conditions that decide whether an application can succeed at all, not whether it is a good fit. The object and every field inside it are OPTIONAL.
+
+<table class="data">
+  <thead>
+    <tr><th>Gate</th><th>Values</th><th>Meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`visa_sponsorship`</td><td>`offered`, `not_offered`, `unspecified`</td><td>Whether the employer will sponsor a work visa for this role.</td></tr>
+    <tr><td>`relocation`</td><td>`offered`, `not_offered`, `required`, `unspecified`</td><td>Whether the employer supports relocation. `required` means the role cannot be performed without relocating — a constraint on the candidate, not an offer to them.</td></tr>
+    <tr><td>`security_clearance`</td><td>`required`, `not_required`, `unspecified`</td><td>Whether the role requires a government security clearance.</td></tr>
+  </tbody>
+</table>
+
+Each gate is a closed enum that includes a member meaning "the posting did not say" (`unspecified`). The gates share this rule, not a vocabulary: a clearance is never offered, and relocation has a state (`required`) that neither `offered` nor `not_offered` expresses.
+
+A gate that is absent, or set to `unspecified`, MUST NOT be read as a negative. An absent gate means exactly `unspecified`. Agents MUST NOT treat it as `not_offered` or `not_required`, and MUST NOT exclude a posting on the basis of a gate the posting did not state. Collapsing "not stated" into "no" asserts a restriction the employer never wrote, and the failure is silent: the candidate never learns the job existed.
+
+Absence is permitted and means `unspecified`, but it cannot distinguish a provider that does not implement eligibility from a posting that said nothing. Providers MAY set `unspecified` explicitly to make their silence deliberate and readable.
+
+Agents MUST ignore enum members of a gate they do not recognise rather than rejecting the posting, per [[#conformance-extensibility]]. A gate may gain a state in a later revision, and that MUST NOT invalidate existing postings.
+
+<div class="example">
+```json
+{
+  "eligibility": {
+    "visa_sponsorship": "not_offered",
+    "relocation": "required",
+    "security_clearance": "unspecified"
+  }
 }
 ```
 </div>
@@ -802,6 +887,7 @@ A [=Verification Step=] MAY include:
 - `instructions` — Instructions for the agent to relay to the candidate
 - `estimated_completion_minutes` — Expected time to complete
 - `expires_at` — When the verification URL expires
+- `ui_resource` — A `ui://` URI of an [MCP Apps](https://apps.extensions.modelcontextprotocol.io) resource the host can render inline as an alternative to opening `verification_url`. See [[#identity-inline-mcp-apps]].
 
 ## VerificationProof ## {#schema-verification-proof}
 
@@ -833,7 +919,7 @@ A conforming [=Verifier Manifest=] MUST include:
 A [=Verifier Manifest=] SHOULD include:
 
 - `verification_endpoint` — URL for initiating verification sessions
-- `proof_delivery_methods` — Supported delivery methods (`callback`, `redirect`, `polling`)
+- `proof_delivery_methods` — Supported delivery methods (`callback`, `redirect`, `polling`, `embedded_app`). `embedded_app` advertises that the verifier can be rendered inline through MCP Apps; see [[#identity-inline-mcp-apps]].
 - `signing_algorithms` — Supported JWS algorithms (ES256 RECOMMENDED)
 - `proof_ttl_seconds` — Default time-to-live for issued proofs
 
@@ -1489,7 +1575,7 @@ request that matches a listed token:
 
 - `begin_application`, `submit_application` — match a call to that tool.
 - `application_prefill`, `full_profile` — match when the request's [=Candidate Context=] declares that `consent_scope` (i.e., PII is in play).
-- `restricted_feed` — match when that optional scope is exercised.
+- `restricted_feed` — match when that optional scope is exercised, including any `search_jobs` request for which the provider would return `restricted` or `private` jobs ([[#search-visibility]]). A provider that gates any part of its feed MUST list this token.
 
 Permissionless unsigned access SHOULD remain available for anonymous `search_jobs` at
 `fit_scoring` scope and below.
@@ -1818,6 +1904,41 @@ When `proof_delivery` is `"agent_submitted"` (or omitted), the agent is responsi
 
 Agents SHOULD prefer redirect-based delivery when available, falling back to polling. Agents MUST NOT poll more frequently than once every 5 seconds.
 
+### Inline Rendering via MCP Apps ### {#identity-inline-mcp-apps}
+
+A [=Verification Step=] MAY be completed inline in the conversation instead of through `verification_url`. The [MCP Apps extension](https://apps.extensions.modelcontextprotocol.io) lets a tool reference a `ui://` resource that the host renders in a sandboxed iframe. Inline rendering is an alternative *delivery surface* for the candidate interaction; it is not a third `proof_delivery` mode, and it does not change how proofs are delivered or validated.
+
+An [=Identity Verifier=] that supports inline rendering advertises it by including `"embedded_app"` in its manifest's `proof_delivery_methods` (see [[#identity-discovery]]). A provider MAY then include the verifier's resource URI as `ui_resource` on the [=Verification Step=]:
+
+<div class="example">
+```json
+{
+  "step_id": "vs_1",
+  "type": "identity",
+  "verifier_id": "id.me",
+  "human_required": true,
+  "verification_url": "https://verify.id.me/flow/abc123",
+  "ui_resource": "ui://id.me/verify/abc123",
+  "proof_delivery": "provider_managed",
+  "expires_at": "2026-09-25T14:30:00Z"
+}
+```
+</div>
+
+**Fallback.** `ui_resource` is OPTIONAL and `verification_url` remains REQUIRED. A host that does not support MCP Apps, or a candidate on a surface that cannot render the resource, uses `verification_url` with no loss of function. Providers and [=Identity Verifiers=] MUST NOT return a [=Verification Step=] that can only be completed through `ui_resource`.
+
+**Proof delivery is unchanged.** For `provider_managed` steps, the verifier delivers the proof to the provider through the channels in [[#identity-delivery-provider]]; the app only drives the candidate interaction. For `agent_submitted` steps, the app returns the proof to the host, which supplies it to `submit_application` in `verification_proofs`, exactly as for a proof collected through the hosted flow. The exact channel by which an app hands the proof back to the host is not defined by this version.
+
+**Obligations:**
+
+- [=Identity Verifiers=] that declare `embedded_app` MUST serve a `ui://` resource that completes the same verification and yields the same [=Verification Proof=] as their hosted flow, and MUST keep `verification_url` valid as the fallback.
+- Providers MUST treat a step whose proof arrives through the app identically to one completed through `verification_url`. The delivery surface does not change how the proof is validated (see [[#identity-claim-validation]]).
+- Hosts render the resource in a sandbox and remain the enforcement point for permissions and for which origins the app may load (Content Security Policy), per MCP Apps.
+
+**Privacy.** The verifier owns and hosts the UI, which runs in the verifier's own origin inside the host's sandbox. Biometric data, documents and other PII captured by the app are handled by the verifier and MUST NOT be transmitted through OJCP (see [[#identity-no-pii]]). Only the signed, opaque [=Verification Proof=] crosses back through the protocol.
+
+OJCP defines only the advertisement (`embedded_app`), the `ui_resource` reference and the fallback contract; it does not define the UI itself.
+
 ## Proof Format and Required Claims ## {#identity-proof-format}
 
 The `proof_token` in a [=Verification Proof=] MUST be a JWS (JSON Web Signature, [[RFC7515]]) in compact serialization format.
@@ -1891,7 +2012,7 @@ When validating `iat` and `exp` claims, providers MUST allow for reasonable cloc
   "description": "Identity verification for workforce and government applications.",
   "verification_types": ["identity", "government_id", "biometric"],
   "verification_endpoint": "https://verify.id.me/ojcp/start",
-  "proof_delivery_methods": ["callback", "redirect", "polling"],
+  "proof_delivery_methods": ["callback", "redirect", "polling", "embedded_app"],
   "proof_format": "jws",
   "signing_algorithms": ["ES256"],
   "proof_ttl_seconds": 86400,
@@ -2294,7 +2415,7 @@ Agents MUST NOT retry before the indicated `Retry-After` / `retry_after_seconds`
 
 ## Employer Controls ## {#security-employer}
 
-- Providers MAY require [=Agent Declaration=] and allowlist specific agent IDs. An allowlist MUST match only verified agent IDs ([[#agent-verification]]).
+- Providers MAY require [=Agent Declaration=] and allowlist specific agent IDs. An allowlist MUST match only verified agent IDs ([[#agent-verification]]). Providers MAY restrict individual jobs to allowlisted agents via the job's [=visibility=] block ([[#search-visibility]]).
 - All agent-initiated application events SHOULD be logged with agent identity and timestamp.
 - Providers MAY disable `supports_agent_submission` on any [=apply path=] at any time.
 

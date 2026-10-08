@@ -112,7 +112,7 @@
         "optional_scopes": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Optional OAuth-style scopes that unlock additional capabilities."
+          "description": "Optional OAuth-style scopes that unlock additional capabilities. restricted_feed, granted through the provider's allowlist / onboarding, together with a verified agent identity unlocks private-tier jobs (see spec § Agent-Scoped Visibility)."
         },
         "agent_signatures": {
           "type": "object",

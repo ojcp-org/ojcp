@@ -30,7 +30,12 @@
   "apply_paths": ["ats_direct", "provider_hosted"],
   "auth": {
     "required": false,
-    "optional_scopes": ["candidate_context", "application_tracking"]
+    "optional_scopes": ["candidate_context", "application_tracking", "restricted_feed"],
+    "agent_signatures": {
+      "supported": true,
+      "algorithms": ["ed25519", "ecdsa-p256-sha256"],
+      "required_for": ["restricted_feed"]
+    }
   },
   "rate_limits": {
     "anonymous_rps": 10,

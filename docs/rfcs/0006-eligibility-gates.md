@@ -7,9 +7,10 @@ labels: rfc
 ## RFC: An `eligibility` block for the hard gates, where every gate can say "not stated"
 
 - **Author:** [Ilya Strelov, freehire](https://freehire.me)
-- **Status:** Draft
+- **Status:** Accepted
 - **Created:** 2026-09-23
 - **Resolves:** [Issue #19](https://github.com/ojcp-org/ojcp/issues/19), item 4
+- **Number:** renumbered from 0005 (duplicate) on 2026-10-08
 
 ## Motivation
 
@@ -137,3 +138,13 @@ One catalogue's full open-posting population (6,064,722 rows), counted 2026-09-2
 The catalogue ingests continuously, so the per-gate queries ran minutes apart and the open-posting total drifted by a few thousand rows between them. Each "not stated" figure above is derived by subtraction from the single total quoted here, so the tables are internally consistent; treat the last three digits of any count as noise.
 
 Counts are from a single provider and should be read as one catalogue being specific, not as an ecosystem survey. The *ratios* are what the argument rests on, and a 41-fold gap does not turn on provider-specific extraction quality.
+
+## For maintainers — comment period and resolution
+
+Comment period opens: 2026-09-23
+
+Comment period closes: 2026-10-23 (30 days)
+
+Resolution: Accepted (2026-10-08), ahead of the close of the comment period. Comments received through 2026-10-23 will be addressed as errata.
+
+Decision record: [docs/decisions/0006-eligibility-gates.md](../decisions/0006-eligibility-gates.md)

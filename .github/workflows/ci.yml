@@ -37,6 +37,8 @@ jobs:
           ajv validate -s schemas/manifest.json -d examples/manifest.json --spec=draft2020 -c ajv-formats
           echo "Validating examples/job-posting.json"
           ajv validate -s schemas/job-posting.json -d examples/job-posting.json --spec=draft2020 -c ajv-formats
+          echo "Validating examples/job-posting-restricted.json"
+          ajv validate -s schemas/job-posting.json -d examples/job-posting-restricted.json --spec=draft2020 -c ajv-formats
           echo "Validating examples/search-response.json"
           ajv validate -s schemas/responses/search-jobs.json -d examples/responses/search-response.json --spec=draft2020 -c ajv-formats
           echo "Validating examples/agent-identity.json"

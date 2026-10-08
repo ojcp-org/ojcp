@@ -7,7 +7,7 @@ labels: rfc
 ## RFC: Inline identity verification via MCP Apps
 
 - **Authors:** Austin Anderson, Recruitics
-- **Status:** Draft
+- **Status:** Accepted
 - **Created:** 2026-09-24
 - **Builds on:** the Identity Verification model (Verification Step, Verifier Manifest, Verification Proof). Composes with the [MCP Apps extension](https://apps.extensions.modelcontextprotocol.io), which lets a tool return an interactive UI resource that the host renders in a sandboxed iframe.
 
@@ -98,6 +98,6 @@ None. `ui_resource` is optional, `verification_url` remains required, and `embed
 
 - **Comment period opens:** 2026-09-24
 - **Comment period closes:** 2026-10-24 (30 days)
-- **Resolution:** <!-- Accepted / Revisions requested / Declined / Withdrawn -->
-- **Decision record:** <!-- link to docs/decisions/NNNN-*.md -->
-- **Recusals:** <!-- list any committee members who recused; reason -->
+- **Resolution:** Accepted 2026-10-08, ahead of the close of the comment period. Comments received through 2026-10-24 will be resolved as errata. Implemented in the spec, schemas and examples.
+- **Decision record:** [docs/decisions/0005-inline-identity-verification-mcp-apps.md](../decisions/0005-inline-identity-verification-mcp-apps.md)
+- **Recusals:** None. The author holds Seat 1 (Recruitics), which operates a provider using identity verification; see the decision record.

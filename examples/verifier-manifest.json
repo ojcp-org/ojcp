@@ -5,7 +5,7 @@
   "description": "Identity verification for workforce and government applications.",
   "verification_types": ["identity", "government_id", "biometric"],
   "verification_endpoint": "https://verify.id.me/ojcp/start",
-  "proof_delivery_methods": ["callback", "redirect", "polling"],
+  "proof_delivery_methods": ["callback", "redirect", "polling", "embedded_app"],
   "proof_format": "jws",
   "signing_algorithms": ["ES256"],
   "proof_ttl_seconds": 86400,
