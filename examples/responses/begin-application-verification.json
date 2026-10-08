@@ -25,6 +25,7 @@
     }
   ],
   "session_token": "sess_def456",
+  "mandate_nonce": "mn_xBVlesPAiuvWDyyxUDEDzDTG",
   "expires_at": "2026-03-20T12:00:00Z",
   "attribution": {
     "method": "impression_match"

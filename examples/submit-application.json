@@ -1,9 +1,16 @@
 {
-  "_comment": "MCP tool call: submit_application — with verification proofs",
+  "_comment": "MCP tool call: submit_application — with verification proofs and a user mandate",
   "name": "submit_application",
   "arguments": {
     "application_id": "app_abc123",
     "session_token": "sess_def456",
+    "application_data": {
+      "answers": {
+        "q_clearance": "secret",
+        "q_relocate": true
+      },
+      "resume_url": "https://files.northstar.ai/r/7f3a9c/resume.pdf"
+    },
     "verification_proofs": [
       {
         "step_id": "vs_1",
@@ -14,6 +21,13 @@
         "issued_at": "2026-03-18T14:30:00Z",
         "expires_at": "2026-03-19T14:30:00Z"
       }
-    ]
+    ],
+    "agent_declaration": {
+      "agent_id": "ai.northstar.assistant",
+      "agent_version": "2.3.0",
+      "acting_on_behalf_of": "human_user",
+      "interaction_mode": "assisted",
+      "user_mandate": "eyJhbGciOiJFUzI1NiIsInR5cCI6ImRjK3NkLWp3dCJ9.eyJpc3MiOiJkaWQ6andrOmV5SmpjbllpT2lKUUxUSTFOaUlzSW10MGVTSTZJa1ZESWl3aWVDSTZJa2xTUmkwM1ZXbGlaamRtY25oWlFXZ3lOVEpmTlRaeWVYUjVlakk1VW5WUldtaHVlREYzWm5BdE9VVWlMQ0o1SWpvaU5GWldkRFEzT0hRNU5HWkVibGxmYW14UE9HbExhVWs0U0dKRFJscHVaRUpNVDNaMVlVbEdjRGN3WnlKOSIsInZjdCI6InVybjpleGFtcGxlOm9qY3AtdXNlci1tYW5kYXRlIiwiYXVkIjoiaHR0cHM6Ly9jYXJlZXJzLmFjbWUuY29tIiwiaWF0IjoxNzczODQ0ODAwLCJuYmYiOjE3NzM4NDQ4MDAsImV4cCI6MTc3Mzg0NTQwMCwianRpIjoibW5kX1JHQkxRSi1sN3FqOURpTkgiLCJjbmYiOnsiamt0IjoidEt3SHNsemlFeFE3ZFFnRFgySFg4cTlFdXZBWW1TX0EzU0tmak5IcGRYOCJ9LCJvamNwX3ZlcnNpb24iOiIwLjEiLCJvamNwX2FjdGlvbiI6InNoYTI1NjpmLWlGV2xsQldoUVRqaWNOcVBQUHlOMjVEc041cmtVUVRobUwyZTJWYWhNIn0.1XOk6jgpw1L1qAnXobaL3-JsSZPpfXtOVKoEQypmlluy2fEzN0NV0EFHDnsauUNQ63NFG3mAJzEPyhB3sP1lFA~eyJhbGciOiJFZERTQSIsInR5cCI6ImtiK2p3dCJ9.eyJpYXQiOjE3NzM4NDQ4MzAsImF1ZCI6Imh0dHBzOi8vY2FyZWVycy5hY21lLmNvbSIsIm5vbmNlIjoibW5feEJWbGVzUEFpdXZXRHl5eFVERUR6RFRHIiwic2RfaGFzaCI6IjVUcjhLMnd2UnU2MWh5SDM5RFd6T0RCQ0ViNldhTTdZWmY1VWN1b0gxYkEifQ.bifXOGmhR7QYHd9SMun47ncF7RPdpEuoFewOgknXKM0ZYHlMLdXxqW-x28o0bHf8Rpc9wWHKkEPYIWQQ-Hi3BQ"
+    }
   }
 }

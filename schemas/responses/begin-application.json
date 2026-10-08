@@ -72,6 +72,11 @@
       "type": "string",
       "description": "Opaque token for multi-step apply flows. Include in subsequent requests."
     },
+    "mandate_nonce": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unpredictable, single-use nonce bound to this application session. The agent binds it into the action statement of a user mandate for submit_application. REQUIRED when the provider accepts user mandates for submit_application. See spec § User Mandates."
+    },
     "expires_at": {
       "type": "string",
       "format": "date-time",
