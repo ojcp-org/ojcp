@@ -41,6 +41,10 @@
       }
     },
     "candidate_context": { "$ref": "https://ojcp.dev/schemas/v0.1/candidate-context.json" },
+    "agent_declaration": {
+      "$ref": "https://ojcp.dev/schemas/v0.1/agent-declaration.json",
+      "description": "Identifies the calling agent so the provider can return jobs whose visibility audience includes it. Only a verified agent_id unlocks restricted or private jobs; absent, unsigned or unverifiable declarations are treated as anonymous. See spec § Agent-Scoped Visibility."
+    },
     "pagination": {
       "type": "object",
       "properties": {

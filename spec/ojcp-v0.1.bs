@@ -168,9 +168,11 @@ Search for open job opportunities. Returns a ranked list of jobs matching the pr
 
 **Required input:** `query` (string)
 
-**Optional input:** `location`, `filters`, `candidate_context`, `pagination`
+**Optional input:** `location`, `filters`, `candidate_context`, `agent_declaration`, `pagination`
 
 When [=Candidate Context=] is provided, the provider SHOULD return personalized results including `fit_score` and `fit_rationale` for each result.
+
+When an [=Agent Declaration=] is provided, the provider MAY use the declared `agent_id` to return jobs restricted to that agent, subject to [[#search-visibility]].
 
 <div class="example">
 ```json
@@ -212,6 +214,7 @@ When [=Candidate Context=] is provided, the provider SHOULD return personalized 
         }
       },
       "candidate_context": { "$ref": "https://ojcp.dev/schemas/v0.1/candidate-context.json" },
+      "agent_declaration": { "$ref": "https://ojcp.dev/schemas/v0.1/agent-declaration.json" },
       "pagination": {
         "type": "object",
         "properties": {
@@ -227,6 +230,44 @@ When [=Candidate Context=] is provided, the provider SHOULD return personalized 
 </div>
 
 **Response:** Returns `ojcp_version`, `query`, `total_results`, `returned`, `offset`, and a `jobs` array. Each job includes core fields (`ojcp_id`, `title`, `employer`, `datePosted`) plus summary data. When [=Candidate Context=] was provided, each job includes `fit_score` (0.0–1.0) and `fit_rationale`. Each job MAY include an `attribution_ref` ([=attribution reference=]; see [[#attribution]]).
+
+### Agent-Scoped Visibility ### {#search-visibility}
+
+A provider MAY limit which callers see a job by setting the job's <dfn>visibility</dfn> block on its [[#schema-job-posting]]. The block has two fields:
+
+- `tier` — one of:
+    - `public` (the default) — returned to all callers, as when no `visibility` block is present.
+    - `restricted` — returned only when the request carries a verified `agent_declaration` whose `agent_id` is in `audience`.
+    - `private` — as `restricted`, and the caller MUST additionally hold the provider-granted `restricted_feed` scope ([[#agent-manifest-policy]]). The existence of a `private` job MUST NOT be disclosed to unauthorized callers.
+- `audience` — an array of `agent_id`s permitted to see the job when `tier` is `restricted` or `private`. Matching is performed server-side only, against the verified identity.
+
+<div class="example">
+```json
+"visibility": {
+  "tier": "restricted",
+  "audience": ["ai.wayfarer.agent", "ai.northstar.assistant"]
+}
+```
+</div>
+
+The declared `agent_id` MUST be verified per [[#agent-verification]] before any `restricted` or `private` job is returned. An absent, unsigned, or unverifiable `agent_declaration` MUST be treated as anonymous, and an anonymous caller MUST receive only `public` jobs. A provider that gates any part of its feed MUST list `restricted_feed` in `auth.agent_signatures.required_for` ([[#agent-manifest-policy]]) so agents know a signed request is required. A provider grants a partner agent the `restricted_feed` scope through its existing allowlist or onboarding mechanism ([[#security-employer]]); possession of the scope, together with a verified identity, is what unlocks `private` jobs.
+
+Providers:
+
+- MUST evaluate `visibility` server-side, and MUST NOT return `restricted` or `private` jobs to callers that do not satisfy the audience and scope requirements against a verified identity.
+- MUST make `total_results` reflect only the set of jobs visible to the caller, and MUST NOT leak the count, existence, or any field of non-visible jobs to unauthorized callers.
+- MUST ignore a `visibility` block they do not support and treat the job as `public`, for forward compatibility.
+
+Agents:
+
+- SHOULD sign `search_jobs` requests ([[#agent-identity]]) and include an `agent_declaration` when they expect access to a provider's restricted inventory.
+- MUST NOT treat the absence of a job as proof that it does not exist.
+
+Visibility gating narrows who sees a job; it MUST NOT become a tool for opaque or discriminatory gatekeeping:
+
+- Gating MUST be based on the agent's identity and the provider's relationship with it, never on characteristics of the candidate the agent represents. A provider MUST NOT vary `visibility` by protected-class or protected-class-proxy attributes of candidates.
+- Restricting a job to an `audience` MUST NOT be used to evade equal-opportunity advertising obligations. Providers remain responsible for their own regulatory compliance regardless of feed segmentation.
+- Restriction is an explicit, opt-in provider choice for a specific job; absent a `visibility` block, a job is `public`.
 
 ## `get_job_detail` ## {#tool-get-job-detail}
 
@@ -609,6 +650,7 @@ OJCP-specific extension fields:
 - `remote_policy` — Remote work policy (`on_site`, `hybrid`, `remote`, `flexible`)
 - `eligibility` — Hard eligibility gates (visa sponsorship, relocation, security clearance); see [[#schema-job-posting-eligibility]]
 - `agent_notes` — Free-text notes for agent consumption
+- `visibility` — Which callers may see the job in `search_jobs` (`tier`: `public`, `restricted`, `private`; `audience`: permitted `agent_id`s). Absent means `public`. See [[#search-visibility]].
 - `official_job_url` — The canonical public URL of the posting on the employer's official careers site or ATS
 
 The posting MAY also carry `url`, the general schema.org web URL for the posting. `url` and `official_job_url` serve distinct purposes and SHOULD NOT be conflated: `url` is a general link that MAY point to an aggregator or third-party board, whereas `official_job_url` asserts the canonical source hosted by the employer.
@@ -1508,7 +1550,7 @@ request that matches a listed token:
 
 - `begin_application`, `submit_application` — match a call to that tool.
 - `application_prefill`, `full_profile` — match when the request's [=Candidate Context=] declares that `consent_scope` (i.e., PII is in play).
-- `restricted_feed` — match when that optional scope is exercised.
+- `restricted_feed` — match when that optional scope is exercised, including any `search_jobs` request for which the provider would return `restricted` or `private` jobs ([[#search-visibility]]). A provider that gates any part of its feed MUST list this token.
 
 Permissionless unsigned access SHOULD remain available for anonymous `search_jobs` at
 `fit_scoring` scope and below.
@@ -2166,7 +2208,7 @@ Agents MUST NOT retry before the indicated `Retry-After` / `retry_after_seconds`
 
 ## Employer Controls ## {#security-employer}
 
-- Providers MAY require [=Agent Declaration=] and allowlist specific agent IDs. An allowlist MUST match only verified agent IDs ([[#agent-verification]]).
+- Providers MAY require [=Agent Declaration=] and allowlist specific agent IDs. An allowlist MUST match only verified agent IDs ([[#agent-verification]]). Providers MAY restrict individual jobs to allowlisted agents via the job's [=visibility=] block ([[#search-visibility]]).
 - All agent-initiated application events SHOULD be logged with agent identity and timestamp.
 - Providers MAY disable `supports_agent_submission` on any [=apply path=] at any time.
 
