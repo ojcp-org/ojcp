@@ -40,7 +40,9 @@ obligations.
 Applying the RFC's non-disclosure rule conservatively, the implementation also requires that
 `get_job_detail` and `begin_application` answer a non-visible `job_id` exactly as a nonexistent job
 (`job_not_found`), and that `visibility.audience` is never returned in `search_jobs` or
-`get_job_detail` responses, since it would reveal other agents' identities. Returning
+`get_job_detail` responses, since it would reveal other agents' identities, and that
+`get_employer_context`'s `open_roles_count` and any other job count or aggregate include only jobs
+visible to the caller. Returning
 `visibility.tier` is optional.
 
 ## Consequences

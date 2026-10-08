@@ -256,6 +256,7 @@ Providers:
 
 - MUST evaluate `visibility` server-side, and MUST NOT return `restricted` or `private` jobs to callers that do not satisfy the audience and scope requirements against a verified identity.
 - MUST make `total_results` reflect only the set of jobs visible to the caller, and MUST NOT leak the count, existence, or any field of non-visible jobs to unauthorized callers.
+- MUST count only jobs visible to the caller in `get_employer_context`'s `open_roles_count` and in any other count or aggregate of jobs they return.
 - MUST answer a `get_job_detail` or `begin_application` request whose `job_id` names a job not visible to the caller exactly as for a nonexistent job, with a `job_not_found` error ([[#tool-errors]]), so that the response does not reveal that the job exists.
 - MUST NOT return `visibility.audience` in `search_jobs` or `get_job_detail` responses, since it would reveal other agents' identities. Returning `visibility.tier` is OPTIONAL.
 - MUST ignore a `visibility` block they do not support and treat the job as `public`, for forward compatibility.
@@ -323,7 +324,7 @@ Retrieve contextual information about an employer — culture, team structure, b
 ```
 </div>
 
-**Response:** Returns `ojcp_version`, `employer_id`, `name`, and optional fields including `description`, `culture_context`, `industries`, `hq_location`, `benefits`, `hiring_process`, and `open_roles_count`.
+**Response:** Returns `ojcp_version`, `employer_id`, `name`, and optional fields including `description`, `culture_context`, `industries`, `hq_location`, `benefits`, `hiring_process`, and `open_roles_count`. `open_roles_count` counts only jobs visible to the caller ([[#search-visibility]]).
 
 ## `begin_application` ## {#tool-begin-application}
 
