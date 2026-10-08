@@ -49,6 +49,12 @@
       "format": "date-time",
       "description": "ISO 8601 timestamp when this verification step's URL expires."
     },
+    "ui_resource": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^ui://",
+      "description": "Optional ui:// URI of an MCP Apps resource the host can render inline as an alternative to opening verification_url. verification_url remains required as the fallback; a step MUST NOT be completable only through ui_resource. Proof delivery is unchanged. See spec § Inline Rendering via MCP Apps."
+    },
     "proof_delivery": {
       "type": "string",
       "enum": ["provider_managed", "agent_submitted"],
