@@ -25,5 +25,8 @@
     }
   ],
   "session_token": "sess_def456",
-  "expires_at": "2026-03-20T12:00:00Z"
+  "expires_at": "2026-03-20T12:00:00Z",
+  "attribution": {
+    "method": "impression_match"
+  }
 }

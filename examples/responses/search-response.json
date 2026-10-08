@@ -35,7 +35,8 @@
         }
       ],
       "fit_score": 0.87,
-      "fit_rationale": "Strong match on distributed systems and backend experience. Go experience aligns well. Location preference compatible with hybrid option."
+      "fit_rationale": "Strong match on distributed systems and backend experience. Go experience aligns well. Location preference compatible with hybrid option.",
+      "attribution_ref": "ar_7Qm2xK9pL4vN8rT1"
     },
     {
       "ojcp_id": "jobs.globex.com:be-10455",
@@ -75,7 +76,8 @@
         }
       ],
       "fit_score": 0.82,
-      "fit_rationale": "Python and SQL skills match. Fully remote aligns with location preference. Salary range meets expectations."
+      "fit_rationale": "Python and SQL skills match. Fully remote aligns with location preference. Salary range meets expectations.",
+      "attribution_ref": "ar_3Hc6wY0bJ5sE2uZ8"
     },
     {
       "ojcp_id": "careers.initech.com:sr-7823",
@@ -108,7 +110,8 @@
         }
       ],
       "fit_score": 0.71,
-      "fit_rationale": "Microservices experience aligns. Java not listed but transferable from backend background. Salary range slightly below expectation."
+      "fit_rationale": "Microservices experience aligns. Java not listed but transferable from backend background. Salary range slightly below expectation.",
+      "attribution_ref": "ar_9Df4nA7gR1kW6yM3"
     }
   ]
 }

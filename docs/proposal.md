@@ -305,16 +305,19 @@ OJCP normalizes the fragmented landscape of application mechanisms:
 
 Apply paths MAY declare `requires_verification: true` and `accepted_verifiers` to require identity verification before agent submission. A `form_skill_url` field can reference a companion form skill descriptor to teach agents how to fill out complex forms.
 
-### 8. Source Attribution
+### 8. Attribution
 
-Both `begin_application` and `submit_application` accept an optional `source_attribution` object:
+Providers attribute applications to the source that surfaced the job from evidence they already hold: the caller's authenticated or verified identity, and the jobs they served it. An agent that searches and applies under the same identity is credited without relaying anything (RFC 0007).
+
+Providers MAY return an opaque `attribution_ref` on each search and detail result. An agent that hands a job to another agent or platform passes it along, and the applying agent can return it in `source_attribution.attribution_ref`. Both `begin_application` and `submit_application` accept an optional `source_attribution` object:
 
 | Field | Description |
 |---|---|
+| `attribution_ref` | Provider-issued reference from a search or detail result, used when a different identity applies |
 | `referrer` | The source that referred the candidate (e.g., domain name, platform identifier) |
-| `reference_id` | Opaque token the source can use for reconciliation (e.g., click ID, session ID) |
+| `reference_id` | Opaque token the source can use for its own reconciliation (e.g., click ID, session ID) |
 
-This enables job boards and aggregators to track referral value without baking ad-tech semantics into the protocol. Analogous to HTTP's `Referer` header or email's `List-Unsubscribe`.
+Providers declare support in the manifest's `attribution` block (`methods`, `window_days`). Matching never uses fingerprinting, and impressions are recorded against the calling software, never the candidate.
 
 ---
 

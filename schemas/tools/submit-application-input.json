@@ -46,7 +46,11 @@
       "type": "object",
       "properties": {
         "referrer": { "type": "string" },
-        "reference_id": { "type": "string" }
+        "reference_id": { "type": "string" },
+        "attribution_ref": {
+          "type": "string",
+          "description": "An attribution_ref previously returned by this provider for the job being applied to. Considered only when the application was unattributed at begin_application. See spec § Attribution."
+        }
       }
     }
   },

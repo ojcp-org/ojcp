@@ -95,6 +95,10 @@
           "fit_rationale": {
             "type": "string",
             "description": "Human-readable explanation of the fit score. Present only when candidate_context was provided."
+          },
+          "attribution_ref": {
+            "type": "string",
+            "description": "Opaque, provider-issued attribution reference for this impression. Agents that hand this job to another agent or platform SHOULD pass it along; agents MAY pass it back in source_attribution.attribution_ref. See spec § Attribution."
           }
         }
       },

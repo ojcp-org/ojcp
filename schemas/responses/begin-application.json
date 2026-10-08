@@ -162,6 +162,22 @@
         }
       },
       "description": "Non-fatal warnings about the request. Providers SHOULD include a warning when fields are silently ignored due to consent_scope restrictions."
+    },
+    "attribution": {
+      "type": "object",
+      "description": "How the provider attributed this application, when it chooses to report it. See spec § Attribution.",
+      "required": ["method"],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["reference", "impression_match", "none"],
+          "description": "The rule that credited the application: a provider-issued attribution_ref, a matching impression served to the caller, or none."
+        },
+        "referred_by": {
+          "type": "string",
+          "description": "The attributable identity a credited attribution_ref was issued to, when it differs from the caller's. Present only when that identity's own reference was presented."
+        }
+      }
     }
   }
 }

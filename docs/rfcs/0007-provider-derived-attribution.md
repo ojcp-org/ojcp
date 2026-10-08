@@ -7,7 +7,7 @@ labels: rfc
 ## RFC: Provider-derived attribution — credit the source of an application without asking agents to relay tokens
 
 - **Author:** Austin Anderson, Recruitics
-- **Status:** Draft
+- **Status:** Accepted
 - **Created:** 2026-10-08
 - **Resolves:** —
 
@@ -156,8 +156,10 @@ None. Every new field and block is optional, and `referrer` and `reference_id` k
 
 ## For maintainers — comment period and resolution
 
-Comment period opens:
+Comment period opens: 2026-10-08
 
-Comment period closes: (30 days)
+Comment period closes: 2026-11-07 (30 days)
 
-Resolution:
+Resolution: Accepted (2026-10-08), ahead of the close of the comment period. Comments received through 2026-11-07 will be addressed as errata.
+
+Decision record: [docs/decisions/0007-provider-derived-attribution.md](../decisions/0007-provider-derived-attribution.md)

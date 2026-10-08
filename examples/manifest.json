@@ -44,5 +44,10 @@
       "verification_types": ["identity", "government_id"],
       "required_for_paths": ["ats_direct"]
     }
-  ]
+  ],
+  "attribution": {
+    "supported": true,
+    "methods": ["impression_match", "reference"],
+    "window_days": 30
+  }
 }
