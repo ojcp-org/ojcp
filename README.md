@@ -1,11 +1,18 @@
-# OJCP — Open Job Context Protocol
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="content/logos/ojcp-dark.svg">
+    <img src="content/logos/ojcp-light.svg" alt="OJCP — Open Job Context Protocol" width="420">
+  </picture>
+</h1>
 
-**An open standard for agent-consumable job data, built on MCP.**
+<p align="center"><strong>An open standard for agent-consumable job data, built on MCP.</strong></p>
 
-[![Status: Draft](https://img.shields.io/badge/status-draft%20v0.2-yellow)](https://spec.ojcp.dev/)
-[![Spec](https://img.shields.io/badge/spec-spec.ojcp.dev-blue)](https://spec.ojcp.dev/)
-[![License: Apache 2.0](https://img.shields.io/badge/code-Apache%202.0-green)](LICENSE)
-[![License: CC BY 4.0](https://img.shields.io/badge/spec-CC%20BY%204.0-green)](CONTRIBUTING.md#licensing)
+<p align="center">
+  <a href="https://github.com/ojcp-org/ojcp/releases/tag/v0.3"><img src="https://img.shields.io/badge/version-0.3-blue" alt="Version 0.3"></a>
+  <a href="https://spec.ojcp.dev/"><img src="https://img.shields.io/badge/spec-spec.ojcp.dev-blue" alt="Spec"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/code-Apache%202.0-green" alt="License: Apache 2.0"></a>
+  <a href="CONTRIBUTING.md#licensing"><img src="https://img.shields.io/badge/spec-CC%20BY%204.0-green" alt="License: CC BY 4.0"></a>
+</p>
 
 ---
 
@@ -44,7 +51,7 @@ OJCP is a community standard, not a single-vendor project. It is governed by a *
   with an invited-expert seat held by Andrew Nolan (WebMCP co-creator).
 </p>
 
-See [GOVERNANCE.md](GOVERNANCE.md) for the seat table, term rules, and the RFC decision process, and [ADOPTERS.md](ADOPTERS.md) for organizations building on OJCP.
+See [GOVERNANCE.md](GOVERNANCE.md) for the seat table, term rules, and how changes are decided, and [ADOPTERS.md](ADOPTERS.md) for organizations building on OJCP.
 
 ---
 
@@ -84,10 +91,10 @@ See [GOVERNANCE.md](GOVERNANCE.md) for the seat table, term rules, and the RFC d
   logos/members/            # Steering-member logos
 /docs
   proposal.md               # Original proposal
-  rfcs/                     # Change proposals
+  rfcs/                     # Design documents behind each feature
   decisions/                # Architecture Decision Records (ADRs)
 GOVERNANCE.md               # Governance charter, steering committee, IP policy
-CONTRIBUTING.md             # How to contribute, RFC process, DCO, licensing
+CONTRIBUTING.md             # How to contribute, change process, DCO, licensing
 CODE_OF_CONDUCT.md          # Contributor Covenant
 ADOPTERS.md                 # Organizations using or evaluating OJCP
 CHANGELOG.md                # Notable spec + governance changes
@@ -103,7 +110,7 @@ Add a manifest at `/.well-known/ojcp.json`:
 
 ```json
 {
-  "ojcp_version": "0.1",
+  "ojcp_version": "0.3",
   "provider": {
     "name": "Acme Corp Careers",
     "employer_id": "acme-corp"
@@ -165,7 +172,7 @@ Discover providers from the [registry](https://github.com/ojcp-org/registry) —
 
 ## Core Concepts
 
-**Job Manifest** — Every OJCP provider exposes `/.well-known/ojcp.json` declaring its tools, endpoints, apply paths, and (optionally) which requests require a verified agent identity. Agents and browsers probe this to discover capabilities without navigating the full site.
+**Job Manifest** — Every OJCP provider exposes `/.well-known/ojcp.json` declaring its tools, endpoints, apply paths, attribution policy, and which requests require a verified agent identity. Agents and browsers probe this to discover capabilities without navigating the full site.
 
 **Job Tools** — MCP-compatible callable functions: `search_jobs`, `get_job_detail`, `get_employer_context`, `begin_application`, `submit_application`, `check_application_status`. Any MCP client can call them directly.
 
@@ -175,11 +182,19 @@ Discover providers from the [registry](https://github.com/ojcp-org/registry) —
 
 **Candidate Context** — A minimal, consent-scoped candidate profile passed by agents for personalized search and fit scoring. PII-minimized by design.
 
-**Agent Identity** — Agents can prove who they are with verifiable request signatures, so providers can distinguish a real, accountable agent from an anonymous scraper without gatekeeping through a central authority. OJCP uses [HTTP Message Signatures](https://www.rfc-editor.org/rfc/rfc9421) on the [Web Bot Auth](https://developer.chrome.com/docs/ai/web-bot-auth) wire profile: the agent publishes its keys at a signatures directory, signs each request (Ed25519 recommended) and names its key via the `Signature-Agent` header. Providers declare support and which contexts require it under `auth.agent_signatures` in their manifest. A verified identity is a *hint about the agent*, not proof a human authorized the action; for that, an `agent_declaration` can carry an optional user-rooted `user_mandate`. See the Agent Identity section of the [spec](https://spec.ojcp.dev/).
+**Eligibility Gates** — Postings state their hard gates (visa sponsorship, relocation, security clearance) in a structured `eligibility` block, so agents can filter before applying instead of wasting an application. A gate the posting didn't state is never read as "no".
+
+**Agent Identity** — Agents prove who they are with verifiable request signatures, so providers can distinguish a real, accountable agent from an anonymous scraper without a central gatekeeper. OJCP uses [HTTP Message Signatures](https://www.rfc-editor.org/rfc/rfc9421) on the [Web Bot Auth](https://developer.chrome.com/docs/ai/web-bot-auth) wire profile: the agent publishes its keys at a signatures directory, signs each request (Ed25519 recommended), and names its key via the `Signature-Agent` header. An `agent_id` binds to the signing domain's namespace, or to signers its own domain delegates to. Providers declare which contexts require a verified identity under `auth.agent_signatures` in their manifest.
 
 **Agent Declaration** — Agents identify themselves and who they act for on every application initiation. Enables employer audit trails, rate limiting, and abuse prevention.
 
-**Identity Verification** — For roles that require verified human identity (finance, government, healthcare), OJCP integrates with third-party verifiers like ID.me and Clear. Two delivery models are supported: **provider-managed** (verification embedded in the apply form, proof delivered directly to the provider via callback) and **agent-submitted** (agent collects the proof and includes it in `submit_application`). In both cases a cryptographic proof is validated — no raw PII flows through the protocol.
+**User Mandates** — A verified identity proves *which software* is calling, not that a person approved the action. A `user_mandate` closes that gap: a credential issued under the user's authority that binds the agent's signing key to one specific action — this job, this application, this exact candidate data — and can be used once.
+
+**Agent-Scoped Visibility** — Providers can make individual jobs visible only to specific verified agents (`restricted`) or to authorized partner feeds (`private`). Non-visible jobs are never disclosed — not in results, counts, or lookups — and gating depends only on the agent, never on the candidate.
+
+**Attribution** — Providers credit each application to the source that surfaced the job, from evidence they already hold: the caller's verified or authenticated identity and the jobs they showed it. Agents get credit without relaying tokens; a provider-issued `attribution_ref` covers hand-offs between agents, and apply URLs carry it for applications completed off-protocol. No fingerprinting, and no candidate tracking.
+
+**Identity Verification** — For roles that require verified human identity (finance, government, healthcare), OJCP integrates with third-party verifiers like ID.me and CLEAR. Two delivery models are supported: **provider-managed** (verification embedded in the apply form, proof delivered directly to the provider) and **agent-submitted** (agent collects the proof and includes it in `submit_application`). Verifiers can also render inline in the conversation via [MCP Apps](https://apps.extensions.modelcontextprotocol.io). In every case a cryptographic proof is validated — no raw PII flows through the protocol.
 
 ### How it works
 
@@ -208,29 +223,34 @@ When an agent proves its identity, the provider verifies the request signature, 
 | MCP | OJCP tools are valid MCP tools — callable by any MCP client |
 | WebMCP | Imperative API (`document.modelContext.registerTool()`) and declarative form annotations |
 | HTTP Message Signatures / Web Bot Auth | Verifiable agent identity (see Agent Identity) |
+| MCP Apps | Inline identity verification rendered in a sandboxed `ui://` resource |
+| SD-JWT VC | Key-bound user mandates |
 | schema.org/JobPosting | OJCP extends it; existing structured data stays valid |
 | Indeed / Zip XML Feeds | OJCP layers over existing feeds via adapter; no replacement required |
 
 ---
 
-## Project status
+## Status
 
-**Draft v0.2 — a living draft.** Accepted changes land in the current draft; the schema namespace stays at `/v0.1/` so existing providers keep validating until a breaking release is cut. Track changes in [CHANGELOG.md](CHANGELOG.md).
+**Current release: [0.3](https://github.com/ojcp-org/ojcp/releases/tag/v0.3)** (2026-10-08). Minor releases are additive and backward-compatible: the schema namespace stays at `/v0.1/`, and implementations of earlier versions remain conforming. See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
-Shipped:
+**Specification** — published at [spec.ojcp.dev](https://spec.ojcp.dev/), with JSON Schemas for every data type and tool:
 
-- ✅ v0.2 draft specification and JSON Schemas, published at [spec.ojcp.dev](https://spec.ojcp.dev/)
-- ✅ Reference provider live at [ojcp.dev](https://ojcp.dev)
-- ✅ Nine-seat founding steering committee seated ([GOVERNANCE.md](GOVERNANCE.md))
-- ✅ Verifiable agent identity (HTTP Message Signatures), specified and implemented in the reference provider
-- ✅ Canonical `official_job_url` trust anchor on JobPosting
-- ✅ Conformance suite ([ojcp-org/conformance](https://github.com/ojcp-org/conformance)) and provider registry ([ojcp-org/registry](https://github.com/ojcp-org/registry))
-- ✅ First independent provider (FoundRole) live and listed in [ADOPTERS.md](ADOPTERS.md)
+- Job manifest, job tools, apply paths, and screening questions
+- JobPosting with multi-location support, eligibility gates, and the `official_job_url` trust anchor
+- Verifiable agent identity, with namespace and delegated binding
+- User mandates for action-level authorization
+- Agent-scoped job visibility
+- Provider-derived attribution
+- Identity verification, including inline rendering via MCP Apps
+- Provider trust (signed manifests) and resume upload
 
-In progress:
+**Ecosystem**
 
-- 🚧 Action-bound user mandates, and a consent/authorization flow to finalize the `user_mandate` claim set
-- 🔜 Growing the registry and adopter set
+- Reference provider live at [ojcp.dev](https://ojcp.dev); independent providers live, including FoundRole and freehire ([ADOPTERS.md](ADOPTERS.md))
+- [Conformance suite](https://github.com/ojcp-org/conformance) with schema validation and reference test vectors
+- [Provider registry](https://github.com/ojcp-org/registry)
+- Nine-seat steering committee ([GOVERNANCE.md](GOVERNANCE.md))
 
 ---
 
@@ -242,7 +262,7 @@ OJCP is built in the open, and external contributions are already shaping it. Se
 - **Agent & browser platform developers** building the candidate-side experience
 - **Employers** with high-volume hiring who want their apply flows agent-ready
 
-Start with [CONTRIBUTING.md](CONTRIBUTING.md) for the RFC process, DCO sign-off, and licensing. Propose changes as an [RFC](docs/rfcs/), validate implementations with the [conformance suite](https://github.com/ojcp-org/conformance), and add yourself to [ADOPTERS.md](ADOPTERS.md).
+Start with [CONTRIBUTING.md](CONTRIBUTING.md) for the change process, DCO sign-off, and licensing. Validate implementations with the [conformance suite](https://github.com/ojcp-org/conformance), and add yourself to [ADOPTERS.md](ADOPTERS.md).
 
 Discuss: [GitHub Discussions](https://github.com/ojcp-org/ojcp/discussions) · `ojcp-discuss@recruitics.com`
 

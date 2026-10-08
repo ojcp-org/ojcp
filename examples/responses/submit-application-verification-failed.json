@@ -1,5 +1,5 @@
 {
-  "ojcp_version": "0.1",
+  "ojcp_version": "0.3",
   "application_id": "app_abc123",
   "status": "verification_failed",
   "message": "One or more verification proofs failed validation.",

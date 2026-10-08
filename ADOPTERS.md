@@ -14,15 +14,19 @@ If your organization is using OJCP at any tier, please open a PR to add yourself
 
 ## Steering Members
 
-| Organization | Seat | Representative | Since |
-|--------------|------|----------------|-------|
-| Recruitics | Specification author | Austin Anderson | 2026-03 |
-| _Open_ | ATS vendor | _Nominations welcome_ | — |
-| _Open_ | Job board / aggregator | _Nominations welcome_ | — |
-| _Open_ | Staffing agency / talent supplier | _Nominations welcome_ | — |
-| _Open_ | Auto-apply / candidate-side application tool | _Nominations welcome_ | — |
-| _Open_ | Agent / AI platform developer | _Nominations welcome_ | — |
-| _Open_ | Independent / academic | _Nominations welcome_ | — |
+| Organization | Seat | Representative |
+|--------------|------|----------------|
+| Recruitics | 1 (specification author) | Austin Anderson |
+| Hiring.cafe | 2 | Hamed Nilforoshan |
+| CrossCountry Healthcare | 3 | Bryan Hughes |
+| Workday | 4 | David Stevens |
+| aiApply | 5 | Peter Utekal |
+| scale.jobs | 6 | Balaji Kummari |
+| Tink | 7 | Tom Chevalier |
+| LoopCV | 8 | Lucas Simopoulos |
+| Invited expert (WebMCP co-creator) | 9 | Andrew Nolan |
+
+The authoritative seat table, terms, and nomination process are in [GOVERNANCE.md](GOVERNANCE.md).
 
 ## Implementing
 

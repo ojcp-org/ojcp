@@ -14,10 +14,11 @@ Boilerplate: conformance no, copyright no
 </pre>
 
 <pre class='metadata'>
-Text Macro: VERSION 0.2
+Text Macro: VERSION 0.3
 </pre>
 
 <pre class='link-defaults'>
+spec:dom; type:dfn; for:/; text:document
 </pre>
 
 <pre class="biblio">
@@ -103,7 +104,7 @@ The manifest MUST be served with `Content-Type: application/json`.
 
 The manifest MUST include:
 
-- `ojcp_version` — The OJCP specification version (currently `"0.2"`).
+- `ojcp_version` — The OJCP specification version (currently `"0.3"`).
 - `provider` — An object with at minimum a `name` field identifying the provider.
 - `tools` — An array of OJCP tool names supported by this provider.
 
@@ -125,7 +126,7 @@ The manifest MAY include:
 <div class="example">
 ```json
 {
-  "ojcp_version": "0.2",
+  "ojcp_version": "0.3",
   "provider": {
     "name": "Acme Corp Careers",
     "employer_id": "acme-corp",
@@ -392,7 +393,7 @@ A `begin_application` response requiring identity verification:
 
 ```json
 {
-  "ojcp_version": "0.2",
+  "ojcp_version": "0.3",
   "application_id": "app_abc123",
   "status": "pending_verification",
   "apply_path": {
@@ -547,7 +548,7 @@ When any OJCP tool call fails, the provider MUST return a standard error envelop
 <div class="example">
 ```json
 {
-  "ojcp_version": "0.2",
+  "ojcp_version": "0.3",
   "error_code": "job_not_found",
   "message": "No job found with ID careers.acme.com:swe-99999.",
   "details": { "job_id": "careers.acme.com:swe-99999" }
@@ -640,7 +641,7 @@ Note: Job posting fields that originate from schema.org (e.g., `employmentType`,
 
 Providers MUST NOT reduce a multi-location posting to one of its locations. Doing so asserts a geographic restriction the employer never stated, and an agent filtering on that value discards the posting everywhere else it is open. Where no location is known, the field is omitted rather than guessed.
 
-Agents MUST accept both forms. A single `Place` remains valid and is the expected shape for a single-location role, so consumers written against earlier drafts keep working; an agent that reads only the single form will misread a multi-location posting and SHOULD be updated to handle the array.
+Agents MUST accept both forms. A single `Place` remains valid and is the expected shape for a single-location role, so consumers written against earlier versions keep working; an agent that reads only the single form will misread a multi-location posting and SHOULD be updated to handle the array.
 
 <div class="example">
 ```json
@@ -722,7 +723,7 @@ On a URL it cannot corroborate, an agent SHOULD lower its confidence or surface 
 
 ### Eligibility Gates ### {#schema-job-posting-eligibility}
 
-A JobPosting MAY carry an `eligibility` object describing the <dfn>hard eligibility gates</dfn> of the role: conditions that decide whether an application can succeed at all, not whether it is a good fit. The object and every field inside it are OPTIONAL.
+A JobPosting MAY carry an `eligibility` object describing the **hard eligibility gates** of the role: conditions that decide whether an application can succeed at all, not whether it is a good fit. The object and every field inside it are OPTIONAL.
 
 <table class="data">
   <thead>
@@ -810,7 +811,7 @@ A conforming [=Agent Declaration=] MUST include:
 - `agent_id` — Reverse-domain-notation identifier
 - `acting_on_behalf_of` — Who the agent represents (`human_user`, `recruiter`, `autonomous_workflow`)
 
-Agents SHOULD include a `user_consent_token` when submitting applications. For `autonomous` interaction modes, the token represents the operator's authorization rather than per-action user consent. The token format and verification mechanism are out of scope for v0.1 — providers decide what level of trust to require.
+Agents SHOULD include a `user_consent_token` when submitting applications. For `autonomous` interaction modes, the token represents the operator's authorization rather than per-action user consent. The token format and verification mechanism are not defined by this specification — providers decide what level of trust to require. Action-level user authorization is defined by [[#user-mandates]].
 
 Agents MAY include a `user_mandate`: a [=user mandate=] by which the user authorizes the agent's signing key to perform one specific action. Unlike `user_consent_token`, its profile and verification are defined by this specification ([[#user-mandates]]).
 
@@ -964,7 +965,7 @@ Providers are RECOMMENDED to implement at least one [=apply path=] where `suppor
 
 # Attribution # {#attribution}
 
-Employers and their distribution partners pay for job distribution on the outcome it produces: an application. This section defines how a provider establishes which source surfaced the job behind an application. It was adopted via RFC 0007.
+Employers and their distribution partners pay for job distribution on the outcome it produces: an application. This section defines how a provider establishes which source surfaced the job behind an application.
 
 Attribution is **derived by the provider** from evidence it already holds: the identity of the caller and the jobs it served to that caller. An agent that searches and applies under the same identity is credited without relaying anything. [=Attribution references=] exist only for the case the provider cannot observe: a handoff between two different identities.
 
@@ -1118,7 +1119,7 @@ On success, the provider returns HTTP 200 with a JSON body:
 
 ```json
 {
-  "ojcp_version": "0.2",
+  "ojcp_version": "0.3",
   "resume_url": "https://uploads.careers.acme.com/r/abc123def?sig=...",
   "expires_at": "2026-04-30T12:00:00Z",
   "filename": "resume.pdf",
@@ -1189,7 +1190,7 @@ OJCP-aware agents face three primary trust risks when interacting with providers
 2. **Manifest tampering.** A legitimate provider's manifest is intercepted or compromised — the served manifest is modified to redirect application submissions to an attacker-controlled endpoint.
 3. **Stale or revoked credentials.** A formerly-legitimate provider's signing key is compromised; agents that cached the manifest continue to trust it after the key has been rotated.
 
-Provider trust addresses all three. It does not address agent-side threats (a bad agent submitting spam to a legitimate provider) — those are addressed separately in [[#security-employer]] and [[#open-questions]].
+Provider trust addresses all three. It does not address agent-side threats (a bad agent submitting spam to a legitimate provider) — those are addressed by [[#agent-identity]], [[#user-mandates]] and [[#security-employer]].
 
 ## Manifest Signing ## {#trust-manifest-signing}
 
@@ -1212,7 +1213,7 @@ A signed manifest:
 
 ```json
 {
-  "ojcp_version": "0.2",
+  "ojcp_version": "0.3",
   "provider": { "name": "Acme Corp Careers", "employer_id": "acme-corp" },
   "tools": ["search_jobs", "get_job_detail", "begin_application", "submit_application", "check_application_status"],
   "apply_paths": ["provider_hosted", "ats_direct"],
@@ -1375,12 +1376,11 @@ Providers SHOULD sign their manifests to enable the `verified` registry tier and
 `ai.wayfarer.agent`, so every mechanism that keys on `agent_id` (agent-scoped visibility,
 employer allowlists, rate limiting, abuse attribution, audit trails) is spoofable. This section
 defines how an agent makes its `agent_id` **cryptographically verifiable** using [[RFC9421]] HTTP
-Message Signatures with key discovery bound to the agent's reverse-domain identity. It was
-adopted via RFC 0001.
+Message Signatures with key discovery bound to the agent's reverse-domain identity.
 
 This is an **identity** layer, not an **authorization** layer, and it is **OPTIONAL**. A
 provider that declares no signature requirements and an agent that signs nothing behave exactly
-as elsewhere in v0.1 (the agent is treated as unauthenticated). Agent identity is distinct from
+as elsewhere in this specification (the agent is treated as unauthenticated). Agent identity is distinct from
 [[#identity-verification]], which verifies the human *candidate*; the two compose.
 
 ## Signing Profile ## {#agent-signing-profile}
@@ -1600,9 +1600,9 @@ the action it binds, and how a provider verifies and consumes it.
 
 # User Mandates # {#user-mandates}
 
-A platform signature ([[#agent-verification]]) proves which software made a request. It does not prove that a person authorized that software to take a particular action. This section defines the minimum interoperable security profile for `AgentDeclaration.user_mandate`: a credential that binds a user's authorization to one OJCP action and to the agent signing key that may exercise it. It was adopted via RFC 0003.
+A platform signature ([[#agent-verification]]) proves which software made a request. It does not prove that a person authorized that software to take a particular action. This section defines the minimum interoperable security profile for `AgentDeclaration.user_mandate`: a credential that binds a user's authorization to one OJCP action and to the agent signing key that may exercise it.
 
-User mandates are OPTIONAL. This section applies only when a provider requires a user mandate for a request. A provider that requires none, and an agent that sends none, behave exactly as elsewhere in v0.1. The media type and exact claim profile of the credential, a JSON Schema and registry for the [=action statement=], and manifest signalling are left to the companion consent specification; this section fixes the security boundary those details MUST satisfy.
+User mandates are OPTIONAL. This section applies only when a provider requires a user mandate for a request. A provider that requires none, and an agent that sends none, behave exactly as elsewhere in this specification. This section fixes the security boundary every user mandate MUST satisfy; the credential's media type and exact claim profile, a registry of [=action statement=] types, and manifest signalling are not defined by this version, and any credential that meets this profile conforms.
 
 ## Definitions ## {#mandate-definitions}
 
@@ -1769,7 +1769,7 @@ A mandate bound through `cnf.jkt` authorizes that exact agent signing key, not e
 
 ## Signalling and Errors ## {#mandate-errors}
 
-A provider that requires a [=user mandate=] MUST document the requirement in its tool descriptions. A [=Job Manifest=] field for mandate requirements is left to the companion consent specification.
+A provider that requires a [=user mandate=] MUST document the requirement in its tool descriptions. This version defines no [=Job Manifest=] field for mandate requirements.
 
 When a context requires a [=user mandate=] and none is presented, or the presented mandate fails any step of [[#mandate-verification]], the provider MUST return the standard error envelope ([[#tool-errors]]) with `error_code` `user_mandate_required`. One code covers both cases, so the response does not reveal which check failed.
 
@@ -2026,7 +2026,7 @@ The `public_keys_url` endpoint returns a JWK Set that providers use to validate 
 
 Providers declare accepted verifiers in their [=Job Manifest=] via the `supported_verifiers` field.
 
-Note: The verifier manifest schema also allows `proof_format: "jws+jwe"` to signal support for signed-then-encrypted proofs ([[RFC7516]]). However, JWE handling rules (key exchange, encryption algorithms, decryption procedures) are not defined in OJCP v0.1. Providers SHOULD reject `jws+jwe` proofs they cannot decrypt. Full JWE support will be defined in a future version of this specification.
+Note: The verifier manifest schema also allows `proof_format: "jws+jwe"` to signal support for signed-then-encrypted proofs ([[RFC7516]]). JWE handling rules (key exchange, encryption algorithms, decryption procedures) are not defined by this specification. Providers SHOULD reject `jws+jwe` proofs they cannot decrypt.
 
 ## Proof Reuse ## {#identity-proof-reuse}
 
@@ -2172,7 +2172,7 @@ A `begin_application` response with multiple verification steps — one provider
 
 ```json
 {
-  "ojcp_version": "0.2",
+  "ojcp_version": "0.3",
   "application_id": "app_fin_456",
   "status": "pending_verification",
   "apply_path": {
@@ -2375,7 +2375,7 @@ A public registry at `registry.ojcp.dev` indexes verified OJCP providers. The re
 
 **Response:** Returns `ojcp_version`, `total_results`, and a `providers` array. Each provider includes `domain`, `name`, `manifest_url`, `mcp_endpoint`, `industries`, `location`, `tools`, `apply_paths`, `has_agent_apply`, `trust_tier` ([[#trust-tiers]]), and `manifest_signed`.
 
-Registration is free and open. The registry performs basic provider verification before listing. The registration process, verification criteria, and governance model for the OJCP Registry will be defined in a separate operational document before the registry launches.
+Registration is free and open. The registry performs basic provider verification before listing. The registration process, verification criteria, and listing review are defined and operated by the [OJCP Registry](https://github.com/ojcp-org/registry).
 
 Note: The `find_ojcp_providers` response includes JSON-LD `@context` and `@type` fields on provider entries to support linked-data consumers. Standard OJCP tool responses (e.g., `search_jobs`, `get_job_detail`) do not include JSON-LD context — they use plain JSON. Job postings returned by providers MAY include JSON-LD context when served as structured data on web pages.
 
@@ -2448,6 +2448,9 @@ Agents MUST NOT retry before the indicated `Retry-After` / `retry_after_seconds`
   <tbody>
     <tr><td>**MCP**</td><td>OJCP tools are valid MCP tools. Any MCP client can call OJCP-compliant endpoints.</td></tr>
     <tr><td>**WebMCP**</td><td>OJCP tools can be registered via the imperative API (`document.modelContext.registerTool()`) or the declarative API (`toolname`/`tooldescription` form attributes) for browser agent access.</td></tr>
+    <tr><td>**MCP Apps**</td><td>Identity verifiers MAY render verification inline as a sandboxed `ui://` resource ([[#identity-inline-mcp-apps]]).</td></tr>
+    <tr><td>**HTTP Message Signatures / Web Bot Auth**</td><td>Verifiable agent identity ([[#agent-identity]]).</td></tr>
+    <tr><td>**SD-JWT VC**</td><td>User mandates SHOULD be key-bound SD-JWT verifiable credentials ([[#user-mandates]]).</td></tr>
     <tr><td>**schema.org/JobPosting**</td><td>OJCP's JobPosting extends schema.org. Existing structured data remains valid.</td></tr>
     <tr><td>**OpenAPI 3.1**</td><td>OJCP REST endpoints SHOULD be documented with OpenAPI 3.1.</td></tr>
     <tr><td>**Indeed XML / ZipRecruiter API**</td><td>OJCP can be layered over existing feeds via adapter.</td></tr>
@@ -2458,7 +2461,7 @@ Agents MUST NOT retry before the indicated `Retry-After` / `retry_after_seconds`
 
 This specification uses semantic versioning. Breaking changes require a major version bump and a 12-month deprecation window for the previous version.
 
-The current version is **0.1** (Draft).
+The current version is **0.3**. Minor versions are additive and backward-compatible: the schema namespace stays at `/v0.1/`, and `ojcp_version` accepts every earlier minor version, so implementations of earlier versions remain conforming.
 
 # Conformance # {#conformance}
 
@@ -2510,13 +2513,15 @@ OJCP additionally **consumes** the `/.well-known/http-message-signatures-directo
 for agent key discovery ([[#agent-key-discovery]]); that URI is defined and registered by the Web
 Bot Auth directory specification, not by OJCP.
 
-# Open Questions # {#open-questions}
+# Scope # {#scope}
 
-1. **Form skill schema** — The `form_skill_url` field on [=apply paths=] references a companion specification for form skill descriptors. This schema — covering field mappings, validation rules, conditional logic, and submission instructions — will be defined in a separate RFC.
-2. **CandidateContext as companion spec** — Privacy sensitivity may warrant splitting [=Candidate Context=] into its own RFC track in a future version.
-3. **Agent trust model** — *Resolved* by [[#agent-identity]] (RFC 0001): agent identity is made verifiable via [[RFC9421]] request signatures with domain-bound key discovery, distinct from and composing with candidate [[#identity-verification]]. The minimum security profile of the user-authorization `user_mandate` is standardized in [[#user-mandates]] (RFC 0003). Its media type, exact claim profile, action-statement schema and registry, and manifest signalling remain for the companion consent specification.
-4. **Registry governance** — Registration process, verification criteria, provider auditing, and dispute resolution for the OJCP Registry at `registry.ojcp.dev`.
-5. **Verifier internal protocol** — OJCP defines the [=Verification Proof=] envelope (JWS format, required claims, JWKS discovery, validation procedure) and the verifier discovery convention (`/.well-known/ojcp-verifier.json`). How verifiers conduct verification internally — candidate interaction flows, biometric capture, document processing — is intentionally out of scope. A companion specification may define verifier interoperability requirements in a future version.
+The following are deliberately outside this specification:
+
+1. **Form skill descriptors** — The `form_skill_url` field on [=apply paths=] references a form skill descriptor (field mappings, validation rules, conditional logic, submission instructions). Its format is defined outside this specification.
+2. **User mandate credential format** — [[#user-mandates]] defines the security profile every user mandate MUST satisfy. The credential media type, exact claim profile, and a registry of [=action statement=] types are not defined here.
+3. **Registry operations** — Registration, verification criteria, provider auditing, and dispute resolution are defined and operated by the [OJCP Registry](https://github.com/ojcp-org/registry).
+4. **Verifier internals** — OJCP defines the [=Verification Proof=] envelope (JWS format, required claims, JWKS discovery, validation procedure) and the verifier discovery convention (`/.well-known/ojcp-verifier.json`). How verifiers conduct verification internally — candidate interaction flows, biometric capture, document processing — is out of scope.
+5. **Conversion reporting** — How an employer's ATS reports the outcome of an application completed off-protocol back to the provider ([[#attribution-off-protocol]]) is between those parties.
 
 # Acknowledgements # {#acknowledgements}
 
