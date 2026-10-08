@@ -258,6 +258,28 @@
         }
       },
       "description": "Identity verification providers accepted by this OJCP provider."
+    },
+    "attribution": {
+      "type": "object",
+      "description": "How this provider attributes applications to the source that surfaced the job. See spec § Attribution.",
+      "required": ["supported"],
+      "properties": {
+        "supported": {
+          "type": "boolean",
+          "description": "Whether the provider establishes attribution for applications."
+        },
+        "methods": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["impression_match", "reference"] },
+          "uniqueItems": true,
+          "description": "The attribution rules the provider applies."
+        },
+        "window_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Attribution window in days: how long after an impression an application can be credited to it. RECOMMENDED 30. Providers MUST NOT retain impression records longer than this."
+        }
+      }
     }
   }
 }

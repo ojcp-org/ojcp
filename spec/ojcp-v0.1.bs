@@ -109,6 +109,7 @@ The manifest MAY include:
 
 - `resume_upload` — An endpoint accepting candidate resume uploads from agents that lack their own file hosting. See [[#resume-upload]].
 - `signature` — A cryptographic [=Manifest Signature=] enabling agents to verify the manifest's authenticity. Required to reach the `verified` registry [=trust tier=]. See [[#provider-trust]].
+- `attribution` — How the provider attributes applications to the source that surfaced the job. See [[#attribution]].
 
 <div class="example">
 ```json
@@ -147,7 +148,12 @@ The manifest MAY include:
       "verification_types": ["identity", "government_id"],
       "required_for_paths": ["ats_direct"]
     }
-  ]
+  ],
+  "attribution": {
+    "supported": true,
+    "methods": ["impression_match", "reference"],
+    "window_days": 30
+  }
 }
 ```
 </div>
@@ -220,7 +226,7 @@ When [=Candidate Context=] is provided, the provider SHOULD return personalized 
 ```
 </div>
 
-**Response:** Returns `ojcp_version`, `query`, `total_results`, `returned`, `offset`, and a `jobs` array. Each job includes core fields (`ojcp_id`, `title`, `employer`, `datePosted`) plus summary data. When [=Candidate Context=] was provided, each job includes `fit_score` (0.0–1.0) and `fit_rationale`.
+**Response:** Returns `ojcp_version`, `query`, `total_results`, `returned`, `offset`, and a `jobs` array. Each job includes core fields (`ojcp_id`, `title`, `employer`, `datePosted`) plus summary data. When [=Candidate Context=] was provided, each job includes `fit_score` (0.0–1.0) and `fit_rationale`. Each job MAY include an `attribution_ref` ([=attribution reference=]; see [[#attribution]]).
 
 ## `get_job_detail` ## {#tool-get-job-detail}
 
@@ -248,7 +254,7 @@ Retrieve full details for a specific job posting, including responsibilities, qu
 ```
 </div>
 
-**Response:** Returns `ojcp_version` and a full `job` object conforming to the JobPosting schema. When `include_employer_context` is true, includes an `employer_context` object. When [=Candidate Context=] was provided, includes `fit_score` and `fit_rationale`.
+**Response:** Returns `ojcp_version` and a full `job` object conforming to the JobPosting schema. When `include_employer_context` is true, includes an `employer_context` object. When [=Candidate Context=] was provided, includes `fit_score` and `fit_rationale`. MAY include an `attribution_ref` ([=attribution reference=]; see [[#attribution]]).
 
 ## `get_employer_context` ## {#tool-get-employer-context}
 
@@ -305,7 +311,8 @@ Providers SHOULD require [=Agent Declaration=] and MAY reject requests without a
         "description": "Attribution for the traffic source that led the candidate to this job. Enables job boards and aggregators to track referral value.",
         "properties": {
           "referrer": { "type": "string", "description": "The source that referred the candidate (e.g., domain name, platform identifier)." },
-          "reference_id": { "type": "string", "description": "Opaque token the source can use for reconciliation (e.g., click ID, session ID)." }
+          "reference_id": { "type": "string", "description": "Opaque token the source can use for reconciliation (e.g., click ID, session ID)." },
+          "attribution_ref": { "type": "string", "description": "An attribution_ref previously returned by this provider for the job being applied to." }
         }
       }
     },
@@ -316,6 +323,8 @@ Providers SHOULD require [=Agent Declaration=] and MAY reject requests without a
 </div>
 
 **Response:** Returns `ojcp_version`, `application_id`, `status` (`initiated`, `pending_submission`, or `pending_verification`), and an `apply_path` descriptor with `type`, `required_fields`, `url`, and `supports_agent_submission`. When `status` is `pending_verification`, includes `verification_steps` — an array of [=Verification Steps=] the candidate must complete before the application can proceed — and `verification_deadline`, an ISO 8601 timestamp after which incomplete verifications cause the application to expire (see [[#identity-async-deadline]]). May include `session_token` for multi-step flows, `expires_at`, and `screening_questions` — an array of questions the candidate must answer, each with `question_id`, `question_text`, `answer_type`, and optional `options`. Questions MAY include validation constraints: `min_length`/`max_length` for text, `pattern` (regex) for format validation, and `min`/`max` for number and date answers. Agents include the answers in `submit_application`'s `application_data.answers` keyed by `question_id`.
+
+A provider that declares attribution support establishes the application's attribution when it handles `begin_application`, and MAY report the outcome in an `attribution` object (`method`, and `referred_by` where applicable). See [[#attribution]].
 
 <div class="example">
 A `begin_application` response requiring identity verification:
@@ -408,7 +417,8 @@ The `resume_url` field requires a hosted URL. Agents with locally-stored resume 
         "description": "Attribution for the traffic source. Same schema as begin_application.",
         "properties": {
           "referrer": { "type": "string" },
-          "reference_id": { "type": "string" }
+          "reference_id": { "type": "string" },
+          "attribution_ref": { "type": "string" }
         }
       }
     },
@@ -847,6 +857,104 @@ Each [=apply path=] object MAY include:
 - `accepted_verifiers` — Array of [=Identity Verifier=] identifiers (e.g., `"id.me"`, `"clear"`) accepted for this [=apply path=]. If omitted when `requires_verification` is true, the provider accepts any verifier listed in the manifest's `supported_verifiers`.
 
 Providers are RECOMMENDED to implement at least one [=apply path=] where `supports_agent_submission` is `true`.
+
+# Attribution # {#attribution}
+
+Employers and their distribution partners pay for job distribution on the outcome it produces: an application. This section defines how a provider establishes which source surfaced the job behind an application. It was adopted via RFC 0007.
+
+Attribution is **derived by the provider** from evidence it already holds: the identity of the caller and the jobs it served to that caller. An agent that searches and applies under the same identity is credited without relaying anything. [=Attribution references=] exist only for the case the provider cannot observe: a handoff between two different identities.
+
+This section standardizes how attribution evidence is established and reported. How credit is priced, split between sources, or billed is out of scope.
+
+Attribution is OPTIONAL. A provider that does not declare it in its [=Job Manifest=] has no obligations under this section.
+
+## Definitions ## {#attribution-definitions}
+
+: <dfn>Impression</dfn>
+:: A provider returning a job (by `ojcp_id`) to a caller in a `search_jobs` or `get_job_detail` response.
+
+: <dfn>Attributable identity</dfn>
+:: The identity an [=impression=] or application is recorded against. In order of strength: a verified `agent_id` ([[#agent-verification]]), then a credential the provider issued (API key, OAuth client). A self-asserted, unverified `agent_id` is **not** an attributable identity.
+
+: <dfn>Attribution window</dfn>
+:: The period after an [=impression=] during which an application can be credited to it.
+
+: <dfn>Attribution reference</dfn>
+:: An opaque, provider-issued value bound to one [=impression=], carried as `attribution_ref`.
+
+## Establishing Attribution ## {#attribution-rules}
+
+A provider that declares attribution support:
+
+- SHOULD record each [=impression=] against the caller's [=attributable identity=], keyed by `ojcp_id`, with the time and the result's rank. It MAY also record `fit_score`. Impression records MUST NOT contain [=Candidate Context=] contents or any candidate identifier.
+- MUST establish attribution when it handles `begin_application`, applying these rules in order:
+    1. **Reference.** If `source_attribution.attribution_ref` is present, valid, unexpired, and bound to the requested `job_id`, the [=impression=] it names is credited. If the reference was issued to a different [=attributable identity=] than the caller's, that identity is recorded as `referred_by`, and the caller as the applying agent (see [[#attribution-security]]).
+    2. **Impression match.** Otherwise, the most recent [=impression=] of the requested `job_id` served to the caller's [=attributable identity=] within the [=attribution window=] is credited (last touch).
+    3. **None.** Otherwise, the application is unattributed.
+- MUST NOT treat a missing `source_attribution` as unattributed when rule 2 applies.
+- MUST NOT match on IP address, user agent, device characteristics, or any other fingerprint. Rule 2 applies only to [=attributable identities=], so an anonymous caller can be credited only through rule 1.
+- MUST fix the attribution when it handles `begin_application`. `submit_application` inherits it through `application_id`. A provider MAY apply `source_attribution` supplied on `submit_application` only when the application was unattributed at `begin_application`.
+
+A `get_job_detail` response counts as an [=impression=]: an agent that fetched a job's detail has engaged with it, whether or not it ran a search first.
+
+## Attribution References ## {#attribution-references}
+
+A provider MAY include an `attribution_ref` on each job in a `search_jobs` response and on a `get_job_detail` response. An agent that hands a job to another agent or platform SHOULD pass the `attribution_ref` along with it. An agent MAY pass it back in `source_attribution.attribution_ref`; an agent that applies under the same identity that received the job need not.
+
+An `attribution_ref`:
+
+- MUST be opaque to agents and integrity-protected, so that an agent can neither forge one nor alter its contents.
+- MUST be bound to the `ojcp_id` it was issued for. A provider MUST ignore a reference presented for a different `job_id`.
+- SHOULD be bound to the [=attributable identity=] it was issued to, and SHOULD expire no later than the end of the [=attribution window=].
+
+A provider MUST treat an invalid, expired, or mismatched reference as absent, falling through to rule 2. A bad reference MUST NOT cause the application to be rejected.
+
+`source_attribution.referrer` and `source_attribution.reference_id` are values **the source** supplies for its own reconciliation, which a provider MAY echo back in reports. Providers MUST NOT require them, and SHOULD NOT rely on them alone as attribution evidence, because they are self-asserted.
+
+## Off-Protocol Applications ## {#attribution-off-protocol}
+
+When an [=apply path=] is completed outside OJCP (`email`, `external_redirect`, and any path with `supports_agent_submission: false`), the provider SHOULD embed an [=attribution reference=] in the apply `url` it returns. The parameter name and encoding are the provider's choice. Agents MUST pass apply URLs to the candidate unmodified, and in particular MUST NOT strip query parameters.
+
+Reporting the resulting conversion from an employer's ATS back to the provider is outside the agent–provider relationship and out of scope for this specification.
+
+## Manifest Declaration ## {#attribution-manifest}
+
+A provider that establishes attribution SHOULD declare it in the [=Job Manifest=]:
+
+<div class="example">
+```json
+"attribution": {
+  "supported": true,
+  "methods": ["impression_match", "reference"],
+  "window_days": 30
+}
+```
+</div>
+
+- `methods` lists the rules in [[#attribution-rules]] that the provider applies.
+- `window_days` is the [=attribution window=], RECOMMENDED 30. A provider MUST NOT retain impression records longer than its declared window.
+
+## Attribution Outcome ## {#attribution-outcome}
+
+A provider MAY report the outcome in the `begin_application` response, so that a source can confirm it was credited without waiting for an out-of-band report:
+
+<div class="example">
+```json
+"attribution": {
+  "method": "reference",
+  "referred_by": "com.example.jobboard"
+}
+```
+</div>
+
+`method` is one of `reference`, `impression_match`, or `none`. `referred_by` is present only when an [=attribution reference=] issued to another [=attributable identity=] was credited. A provider MUST NOT reveal anything else about another identity's impressions.
+
+## Security Considerations ## {#attribution-security}
+
+- **Spoofed identity.** Impression matching keys on [=attributable identities=] only. Matching on a self-asserted `agent_id` would let any caller manufacture or misdirect credit; see also [[#agent-identity]].
+- **Fabricated conversions.** `begin_application` is cheap to call. A provider that bills on outcomes SHOULD treat a submitted application, not an initiated one, as the conversion.
+- **Reference stuffing.** An identity could push its references into other agents' flows to claim credit for applications it did not drive. Rule 1 therefore records a foreign reference as `referred_by` alongside the applying identity, and never erases the applying identity's own evidence. How credit is divided is a commercial decision.
+- **Replay.** Binding a reference to an `ojcp_id` and expiring it with the [=attribution window=] limits replay to the job it was issued for and the window it was issued in.
 
 # Resume Upload # {#resume-upload}
 
@@ -1961,6 +2069,7 @@ All OJCP endpoints — including `mcp_endpoint`, `feed_endpoints`, manifest URLs
 - [=Candidate Context=] is opt-in and scoped. Agents MUST declare `consent_scope` with every tool call that includes candidate data.
 - `resume_embedding_hash` enables fit-scoring without transmitting sensitive PII.
 - Candidates MUST be able to revoke agent access tokens, immediately invalidating in-flight apply sessions.
+- [=Impressions=] are recorded against the calling software's [=attributable identity=], never against the candidate, and are retained no longer than the declared [=attribution window=] (see [[#attribution]]). Providers MUST NOT fingerprint callers for attribution.
 
 ## Data Freshness ## {#security-data-freshness}
 
