@@ -1,11 +1,18 @@
-# OJCP — Open Job Context Protocol
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="content/logos/ojcp-dark.svg">
+    <img src="content/logos/ojcp-light.svg" alt="OJCP — Open Job Context Protocol" width="420">
+  </picture>
+</h1>
 
-**An open standard for agent-consumable job data, built on MCP.**
+<p align="center"><strong>An open standard for agent-consumable job data, built on MCP.</strong></p>
 
-[![Version 0.3](https://img.shields.io/badge/version-0.3-blue)](https://github.com/ojcp-org/ojcp/releases/tag/v0.3)
-[![Spec](https://img.shields.io/badge/spec-spec.ojcp.dev-blue)](https://spec.ojcp.dev/)
-[![License: Apache 2.0](https://img.shields.io/badge/code-Apache%202.0-green)](LICENSE)
-[![License: CC BY 4.0](https://img.shields.io/badge/spec-CC%20BY%204.0-green)](CONTRIBUTING.md#licensing)
+<p align="center">
+  <a href="https://github.com/ojcp-org/ojcp/releases/tag/v0.3"><img src="https://img.shields.io/badge/version-0.3-blue" alt="Version 0.3"></a>
+  <a href="https://spec.ojcp.dev/"><img src="https://img.shields.io/badge/spec-spec.ojcp.dev-blue" alt="Spec"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/code-Apache%202.0-green" alt="License: Apache 2.0"></a>
+  <a href="CONTRIBUTING.md#licensing"><img src="https://img.shields.io/badge/spec-CC%20BY%204.0-green" alt="License: CC BY 4.0"></a>
+</p>
 
 ---
 
