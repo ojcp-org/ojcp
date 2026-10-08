@@ -31,7 +31,7 @@
     "user_mandate": {
       "type": "string",
       "maxLength": 8192,
-      "description": "Optional user-rooted authorization credential (compact SD-JWT VC) that endorses the agent's signing key and is bound to a hash of the specific action. Proves the human authorized THIS action, as distinct from acting_on_behalf_of (a self-asserted hint). A self-asserted acting_on_behalf_of MUST NOT be treated as delegated user authority. The precise claim set is defined by the forthcoming OJCP consent RFC."
+      "description": "Optional user mandate: a credential, SHOULD be a compact SD-JWT VC presented with a key-binding proof, by which the user authorizes the agent signing key named in its cnf.jkt claim to perform one OJCP action, bound to a canonical action statement (resource server, employer when multi-tenant, tool, job, agent key, and for submit_application the application_id, candidate-data digest and provider-issued mandate_nonce). Proves the user authorized THIS action, as distinct from acting_on_behalf_of (a self-asserted hint), which MUST NOT be treated as delegated user authority. Providers evaluate it only on a request with a verified agent identity. See spec § User Mandates."
     }
   }
 }

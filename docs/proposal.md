@@ -230,7 +230,7 @@ Consent-scoped candidate profile. Agents MUST NOT transmit candidate data beyond
 
 #### `AgentDeclaration`
 
-Agent self-identification for audit trails and rate limiting. Includes `agent_id` (reverse-domain notation), `acting_on_behalf_of`, `interaction_mode`, and optional `user_consent_token`.
+Agent self-identification for audit trails and rate limiting. Includes `agent_id` (reverse-domain notation), `acting_on_behalf_of`, `interaction_mode`, and optional `user_consent_token`. An optional `user_mandate` carries a user's authorization for one specific action: a credential (an SD-JWT VC) bound to the agent's signing key and to a canonical statement of the action — resource server, employer (on a multi-tenant ATS), job, and for `submit_application` the application, a digest of the submitted candidate data, and a provider-issued single-use nonce. Providers that require one verify it fail-closed and never treat `acting_on_behalf_of`, a platform signature, or an identity-verification proof as user authority.
 
 #### `VerificationStep`
 
