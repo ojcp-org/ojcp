@@ -10,6 +10,7 @@ labels: rfc
 - **Status:** Draft
 - **Created:** 2026-09-23
 - **Resolves:** [Issue #19](https://github.com/ojcp-org/ojcp/issues/19), item 4
+- **Number:** renumbered from 0005 (duplicate) on 2026-10-08
 
 ## Motivation
 
