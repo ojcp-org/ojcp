@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Spec site layout** — [spec.ojcp.dev](https://spec.ojcp.dev/) serves the latest specification at the root, and every release keeps a permanent URL built from its tag (`/0.1/`, `/0.2/`, `/0.3/`). Pushing a release tag republishes the site.
+- **Diagrams** — the agent-identity sequence shows grammar validation and namespace or delegated binding (replacing the Public Suffix List step); the apply flow shows attribution at `begin_application` and the optional user mandate bound to the application before submit; the agent-submitted verification flow shows inline rendering via MCP Apps.
+
 ## [0.3] - 2026-10-08
 
 Minor version. All changes are additive and backward-compatible: the schema `$id`

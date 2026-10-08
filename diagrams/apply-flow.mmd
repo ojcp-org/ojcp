@@ -16,11 +16,17 @@ sequenceDiagram
     end
 
     A->>P: begin_application(job_id, candidate, agent)
-    P-->>A: status: pending_submission<br/>+ screening_questions[]
+    Note over P: Attribution credited to the source<br/>that surfaced this job
+    P-->>A: status: pending_submission<br/>+ screening_questions[] (+ mandate_nonce)
 
     Note over A,C: Agent fills screening answers<br/>from candidate context
 
-    A->>P: submit_application(app_id, session_token,<br/>application_data{answers, resume_url})
+    opt Provider requires a user mandate
+        A-->>C: Approve this exact application?
+        C->>A: user_mandate bound to application_id,<br/>mandate_nonce and answers digest
+    end
+
+    A->>P: submit_application(app_id, session_token,<br/>application_data{answers, resume_url},<br/>agent_declaration{user_mandate})
 
     P->>ATS: POST application
     ATS-->>P: application_id
