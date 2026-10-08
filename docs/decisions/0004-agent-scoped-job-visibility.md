@@ -37,6 +37,12 @@ no count, existence or field of non-visible jobs, and treat an unsupported `visi
 candidate characteristics, and does not relieve providers of equal-opportunity advertising
 obligations.
 
+Applying the RFC's non-disclosure rule conservatively, the implementation also requires that
+`get_job_detail` and `begin_application` answer a non-visible `job_id` exactly as a nonexistent job
+(`job_not_found`), and that `visibility.audience` is never returned in `search_jobs` or
+`get_job_detail` responses, since it would reveal other agents' identities. Returning
+`visibility.tier` is optional.
+
 ## Consequences
 
 - Providers can serve per-job partner inventory through the standard tool instead of

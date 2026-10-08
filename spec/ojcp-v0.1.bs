@@ -256,6 +256,8 @@ Providers:
 
 - MUST evaluate `visibility` server-side, and MUST NOT return `restricted` or `private` jobs to callers that do not satisfy the audience and scope requirements against a verified identity.
 - MUST make `total_results` reflect only the set of jobs visible to the caller, and MUST NOT leak the count, existence, or any field of non-visible jobs to unauthorized callers.
+- MUST answer a `get_job_detail` or `begin_application` request whose `job_id` names a job not visible to the caller exactly as for a nonexistent job, with a `job_not_found` error ([[#tool-errors]]), so that the response does not reveal that the job exists.
+- MUST NOT return `visibility.audience` in `search_jobs` or `get_job_detail` responses, since it would reveal other agents' identities. Returning `visibility.tier` is OPTIONAL.
 - MUST ignore a `visibility` block they do not support and treat the job as `public`, for forward compatibility.
 
 Agents:
@@ -296,6 +298,8 @@ Retrieve full details for a specific job posting, including responsibilities, qu
 </div>
 
 **Response:** Returns `ojcp_version` and a full `job` object conforming to the JobPosting schema. When `include_employer_context` is true, includes an `employer_context` object. When [=Candidate Context=] was provided, includes `fit_score` and `fit_rationale`. MAY include an `attribution_ref` ([=attribution reference=]; see [[#attribution]]).
+
+A job not visible to the caller under [[#search-visibility]] MUST be answered exactly as a nonexistent job, with `job_not_found`. The returned `job` MUST NOT include `visibility.audience`.
 
 ## `get_employer_context` ## {#tool-get-employer-context}
 
@@ -364,6 +368,8 @@ Providers SHOULD require [=Agent Declaration=] and MAY reject requests without a
 </div>
 
 **Response:** Returns `ojcp_version`, `application_id`, `status` (`initiated`, `pending_submission`, or `pending_verification`), and an `apply_path` descriptor with `type`, `required_fields`, `url`, and `supports_agent_submission`. When `status` is `pending_verification`, includes `verification_steps` — an array of [=Verification Steps=] the candidate must complete before the application can proceed — and `verification_deadline`, an ISO 8601 timestamp after which incomplete verifications cause the application to expire (see [[#identity-async-deadline]]). May include `session_token` for multi-step flows, `expires_at`, and `screening_questions` — an array of questions the candidate must answer, each with `question_id`, `question_text`, `answer_type`, and optional `options`. Questions MAY include validation constraints: `min_length`/`max_length` for text, `pattern` (regex) for format validation, and `min`/`max` for number and date answers. Agents include the answers in `submit_application`'s `application_data.answers` keyed by `question_id`.
+
+A `begin_application` request for a job not visible to the caller under [[#search-visibility]] MUST be answered exactly as for a nonexistent job, with `job_not_found`.
 
 A provider that declares attribution support establishes the application's attribution when it handles `begin_application`, and MAY report the outcome in an `attribution` object (`method`, and `referred_by` where applicable). See [[#attribution]].
 
