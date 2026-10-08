@@ -191,7 +191,7 @@ Providers MAY expose additional tools using namespaced names (e.g., `acme:get_re
 
 #### `JobPosting` (extends schema.org/JobPosting)
 
-OJCP extends schema.org's `JobPosting` with agent-specific fields: `skills_required`, `skills_preferred`, `team_context`, `urgency`, `application_volume_signal`, `requisition_id`, `department`, `hiring_manager`, `remote_policy`, `agent_notes`, and `apply_paths`. Each apply path declares `supports_agent_submission`, and optionally `requires_verification`, `accepted_verifiers`, and `product_name`.
+OJCP extends schema.org's `JobPosting` with agent-specific fields: `skills_required`, `skills_preferred`, `team_context`, `urgency`, `application_volume_signal`, `requisition_id`, `department`, `hiring_manager`, `remote_policy`, `eligibility`, `agent_notes`, and `apply_paths`. `eligibility` carries the hard gates (visa sponsorship, relocation, security clearance); every gate can say "not stated", and an absent or unstated gate is never read as a negative. Each apply path declares `supports_agent_submission`, and optionally `requires_verification`, `accepted_verifiers`, and `product_name`.
 
 ```json
 {

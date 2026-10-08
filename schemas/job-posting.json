@@ -163,6 +163,27 @@
       "enum": ["on_site", "hybrid", "remote", "flexible"],
       "description": "Remote work policy for this role."
     },
+    "eligibility": {
+      "type": "object",
+      "description": "Hard eligibility gates: conditions that decide whether an application can succeed at all. Every gate is a closed enum that includes a value for 'the posting did not say'. An absent gate means exactly that value — agents MUST NOT read absence as a negative. Agents MUST ignore enum members they do not recognise rather than rejecting the posting. See spec § Eligibility Gates.",
+      "properties": {
+        "visa_sponsorship": {
+          "type": "string",
+          "enum": ["offered", "not_offered", "unspecified"],
+          "description": "Whether the employer will sponsor a work visa for this role."
+        },
+        "relocation": {
+          "type": "string",
+          "enum": ["offered", "not_offered", "required", "unspecified"],
+          "description": "Whether the employer supports relocation. `required` means the role cannot be performed without relocating — a constraint on the candidate, not an offer to them."
+        },
+        "security_clearance": {
+          "type": "string",
+          "enum": ["required", "not_required", "unspecified"],
+          "description": "Whether the role requires a government security clearance."
+        }
+      }
+    },
     "agent_notes": {
       "type": "string",
       "description": "Free-text notes intended for agent consumption (e.g., recruiter info, timeline hints)."
