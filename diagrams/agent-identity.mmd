@@ -2,13 +2,14 @@ sequenceDiagram
     participant A as AI Agent
     participant P as Provider (OJCP endpoint)
     participant D as Agent Key Directory
+    participant H as Host named by agent_id
 
-    Note over A,D: Signed request
+    Note over A,H: Signed request
 
     A->>A: sign request (HTTP Message Signatures)<br/>covered: @method @authority @path @query<br/>content-digest, signature-agent
     A->>P: tool call + Signature-Input / Signature<br/>Signature-Agent + Content-Digest
 
-    Note over A,D: Verification (steps 1-5)
+    Note over A,H: Verification (steps 1-5)
 
     P->>D: GET /.well-known/http-message-signatures-directory<br/>(HTTPS, SSRF-guarded, no private IPs)
     D-->>P: JWK Set
@@ -18,17 +19,24 @@ sequenceDiagram
     P->>P: 4. freshness (created/expires, window <= 300s)
     P->>P: 5. nonce not replayed for this keyid
 
-    Note over A,D: Identity binding (step 6)
+    Note over A,H: Identity binding (steps 6-7)
 
-    P->>P: registrable domain of agent_id (PSL, incl. PRIVATE)<br/>== Signature-Agent origin
-
-    Note over A,D: Policy (step 7 + required_for)
-
-    alt all checks pass
-        P->>P: agent_id is verified
-        P-->>A: tool result
-    else signature required but missing/invalid
-        P-->>A: error envelope<br/>(agent_signature_missing / _invalid / _expired /<br/>_nonce_replayed / _identity_mismatch / ...)
+    P->>P: 6. agent_id matches the grammar<br/>(lowercase LDH labels, never normalized)
+    alt namespace binding
+        P->>P: 7. reversed Signature-Agent host prefixes agent_id<br/>on a label boundary (wayfarer.ai → ai.wayfarer.*)
+    else delegated binding
+        P->>H: GET /.well-known/ojcp-agent.json<br/>(ai.wayfarer.agent → agent.wayfarer.ai)
+        H-->>P: Agent Identity Document (agent_id, signers)
+        P->>P: 7. Signature-Agent origin is listed in signers
     end
 
-    Note over A,P: Session binding — submit_application MUST be<br/>signed by the same verified agent that began it
+    Note over A,H: Policy (step 8 + required_for)
+
+    alt all checks pass
+        P->>P: 8. agent_id is verified
+        P-->>A: tool result
+    else signature required but missing/invalid
+        P-->>A: error envelope<br/>(agent_signature_missing / _invalid / _expired /<br/>_nonce_replayed / agent_id_malformed / _identity_mismatch / ...)
+    end
+
+    Note over A,P: Session binding — submit_application SHOULD be<br/>signed by the same verified agent that began it
