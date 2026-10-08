@@ -35,6 +35,11 @@
   "department": "Engineering — Platform",
   "hiring_manager": "Sarah Kim",
   "remote_policy": "hybrid",
+  "eligibility": {
+    "visa_sponsorship": "offered",
+    "relocation": "offered",
+    "security_clearance": "unspecified"
+  },
   "apply_paths": [
     {
       "type": "provider_hosted",

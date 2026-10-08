@@ -607,6 +607,7 @@ OJCP-specific extension fields:
 - `department` — Department or business unit
 - `hiring_manager` — Name of the hiring manager
 - `remote_policy` — Remote work policy (`on_site`, `hybrid`, `remote`, `flexible`)
+- `eligibility` — Hard eligibility gates (visa sponsorship, relocation, security clearance); see [[#schema-job-posting-eligibility]]
 - `agent_notes` — Free-text notes for agent consumption
 - `official_job_url` — The canonical public URL of the posting on the employer's official careers site or ATS
 
@@ -650,6 +651,41 @@ On a URL it cannot corroborate, an agent SHOULD lower its confidence or surface 
       "supports_agent_submission": true
     }
   ]
+}
+```
+</div>
+
+### Eligibility Gates ### {#schema-job-posting-eligibility}
+
+A JobPosting MAY carry an `eligibility` object describing the <dfn>hard eligibility gates</dfn> of the role: conditions that decide whether an application can succeed at all, not whether it is a good fit. The object and every field inside it are OPTIONAL.
+
+<table class="data">
+  <thead>
+    <tr><th>Gate</th><th>Values</th><th>Meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`visa_sponsorship`</td><td>`offered`, `not_offered`, `unspecified`</td><td>Whether the employer will sponsor a work visa for this role.</td></tr>
+    <tr><td>`relocation`</td><td>`offered`, `not_offered`, `required`, `unspecified`</td><td>Whether the employer supports relocation. `required` means the role cannot be performed without relocating — a constraint on the candidate, not an offer to them.</td></tr>
+    <tr><td>`security_clearance`</td><td>`required`, `not_required`, `unspecified`</td><td>Whether the role requires a government security clearance.</td></tr>
+  </tbody>
+</table>
+
+Each gate is a closed enum that includes a member meaning "the posting did not say" (`unspecified`). The gates share this rule, not a vocabulary: a clearance is never offered, and relocation has a state (`required`) that neither `offered` nor `not_offered` expresses.
+
+A gate that is absent, or set to `unspecified`, MUST NOT be read as a negative. An absent gate means exactly `unspecified`. Agents MUST NOT treat it as `not_offered` or `not_required`, and MUST NOT exclude a posting on the basis of a gate the posting did not state. Collapsing "not stated" into "no" asserts a restriction the employer never wrote, and the failure is silent: the candidate never learns the job existed.
+
+Absence is permitted and means `unspecified`, but it cannot distinguish a provider that does not implement eligibility from a posting that said nothing. Providers MAY set `unspecified` explicitly to make their silence deliberate and readable.
+
+Agents MUST ignore enum members of a gate they do not recognise rather than rejecting the posting, per [[#conformance-extensibility]]. A gate may gain a state in a later revision, and that MUST NOT invalidate existing postings.
+
+<div class="example">
+```json
+{
+  "eligibility": {
+    "visa_sponsorship": "not_offered",
+    "relocation": "required",
+    "security_clearance": "unspecified"
+  }
 }
 ```
 </div>
