@@ -187,6 +187,23 @@
     "agent_notes": {
       "type": "string",
       "description": "Free-text notes intended for agent consumption (e.g., recruiter info, timeline hints)."
+    },
+    "visibility": {
+      "type": "object",
+      "description": "Which callers may see this job in search_jobs results. Absent means public. Evaluated server-side against a verified agent_id. See spec § Agent-Scoped Visibility.",
+      "properties": {
+        "tier": {
+          "type": "string",
+          "enum": ["public", "restricted", "private"],
+          "default": "public",
+          "description": "public: returned to all callers. restricted: returned only to a verified agent_id listed in audience. private: as restricted, and the caller must also hold the provider-granted restricted_feed scope; existence MUST NOT be disclosed to unauthorized callers."
+        },
+        "audience": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "agent_ids permitted to see the job when tier is restricted or private. Matched server-side only, against the verified identity."
+        }
+      }
     }
   },
   "$defs": {

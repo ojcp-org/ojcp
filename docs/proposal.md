@@ -142,7 +142,7 @@ OJCP defines six standard MCP-compatible tools. Providers MUST implement at leas
 
 #### `search_jobs`
 
-Search for open job opportunities. Returns a ranked list of jobs matching the provided criteria. When `candidate_context` is provided, results include `fit_score` and `fit_rationale`.
+Search for open job opportunities. Returns a ranked list of jobs matching the provided criteria. When `candidate_context` is provided, results include `fit_score` and `fit_rationale`. An optional `agent_declaration` lets a provider return jobs restricted to that agent: a job's optional `visibility` block (`tier`: `public` | `restricted` | `private`, plus an `audience` of `agent_id`s) is enforced server-side against a verified `agent_id` only, `private` jobs also require the provider-granted `restricted_feed` scope, and anonymous callers see only `public` jobs. `total_results` counts only jobs visible to the caller, and gating MUST be based on the agent's identity, never on candidate characteristics (RFC 0004).
 
 ```json
 {
@@ -154,6 +154,7 @@ Search for open job opportunities. Returns a ranked list of jobs matching the pr
       "location": { "type": "object", "properties": { "city": {}, "state": {}, "country": {}, "remote_ok": {}, "radius_miles": {} } },
       "filters": { "type": "object", "properties": { "employment_type": {}, "salary_min": {}, "salary_max": {}, "experience_level": {}, "posted_within_days": {} } },
       "candidate_context": { "$ref": "CandidateContext" },
+      "agent_declaration": { "$ref": "AgentDeclaration" },
       "pagination": { "type": "object", "properties": { "limit": {}, "offset": {} } }
     },
     "required": ["query"]
@@ -191,7 +192,7 @@ Providers MAY expose additional tools using namespaced names (e.g., `acme:get_re
 
 #### `JobPosting` (extends schema.org/JobPosting)
 
-OJCP extends schema.org's `JobPosting` with agent-specific fields: `skills_required`, `skills_preferred`, `team_context`, `urgency`, `application_volume_signal`, `requisition_id`, `department`, `hiring_manager`, `remote_policy`, `eligibility`, `agent_notes`, and `apply_paths`. `eligibility` carries the hard gates (visa sponsorship, relocation, security clearance); every gate can say "not stated", and an absent or unstated gate is never read as a negative. Each apply path declares `supports_agent_submission`, and optionally `requires_verification`, `accepted_verifiers`, and `product_name`.
+OJCP extends schema.org's `JobPosting` with agent-specific fields: `skills_required`, `skills_preferred`, `team_context`, `urgency`, `application_volume_signal`, `requisition_id`, `department`, `hiring_manager`, `remote_policy`, `eligibility`, `agent_notes`, `visibility`, and `apply_paths`. `eligibility` carries the hard gates (visa sponsorship, relocation, security clearance); every gate can say "not stated", and an absent or unstated gate is never read as a negative. Each apply path declares `supports_agent_submission`, and optionally `requires_verification`, `accepted_verifiers`, and `product_name`.
 
 ```json
 {

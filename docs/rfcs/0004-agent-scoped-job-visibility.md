@@ -7,7 +7,7 @@ labels: rfc
 ## RFC: Agent-scoped job visibility in `search_jobs`
 
 - **Authors:** Tom Chevalier, Tink · Austin Anderson, Recruitics
-- **Status:** Draft
+- **Status:** Accepted
 - **Created:** 2026-08-10
 - **Builds on:** [RFC 0001 — Verifiable agent identity (RFC 9421)](0001-agent-identity-http-message-signatures.md) (Accepted). Audience gating in this RFC is enforced against a **verified** `agent_id`, not a self-asserted one.
 
@@ -113,6 +113,6 @@ None. All additions are optional. A v0.1 provider that ignores `agent_declaratio
 
 - **Comment period opens:** 2026-08-28
 - **Comment period closes:** 2026-09-27 (30 days)
-- **Resolution:** <!-- Accepted / Revisions requested / Declined / Withdrawn -->
-- **Decision record:** <!-- link to docs/decisions/NNNN-*.md -->
-- **Recusals:** <!-- list any committee members who recused; reason -->
+- **Resolution:** Accepted (2026-10-08, after the close of the comment period)
+- **Decision record:** [0004 — Agent-scoped job visibility](../decisions/0004-agent-scoped-job-visibility.md)
+- **Recusals:** None recorded. Both authors hold seats (Tom Chevalier, Tink, Seat 7; Austin Anderson, Recruitics, Seat 1); see the decision record.
