@@ -784,6 +784,7 @@ A [=Verification Step=] MAY include:
 - `instructions` — Instructions for the agent to relay to the candidate
 - `estimated_completion_minutes` — Expected time to complete
 - `expires_at` — When the verification URL expires
+- `ui_resource` — A `ui://` URI of an [MCP Apps](https://apps.extensions.modelcontextprotocol.io) resource the host can render inline as an alternative to opening `verification_url`. See [[#identity-inline-mcp-apps]].
 
 ## VerificationProof ## {#schema-verification-proof}
 
@@ -815,7 +816,7 @@ A conforming [=Verifier Manifest=] MUST include:
 A [=Verifier Manifest=] SHOULD include:
 
 - `verification_endpoint` — URL for initiating verification sessions
-- `proof_delivery_methods` — Supported delivery methods (`callback`, `redirect`, `polling`)
+- `proof_delivery_methods` — Supported delivery methods (`callback`, `redirect`, `polling`, `embedded_app`). `embedded_app` advertises that the verifier can be rendered inline through MCP Apps; see [[#identity-inline-mcp-apps]].
 - `signing_algorithms` — Supported JWS algorithms (ES256 RECOMMENDED)
 - `proof_ttl_seconds` — Default time-to-live for issued proofs
 
@@ -1618,6 +1619,41 @@ When `proof_delivery` is `"agent_submitted"` (or omitted), the agent is responsi
 
 Agents SHOULD prefer redirect-based delivery when available, falling back to polling. Agents MUST NOT poll more frequently than once every 5 seconds.
 
+### Inline Rendering via MCP Apps ### {#identity-inline-mcp-apps}
+
+A [=Verification Step=] MAY be completed inline in the conversation instead of through `verification_url`. The [MCP Apps extension](https://apps.extensions.modelcontextprotocol.io) lets a tool reference a `ui://` resource that the host renders in a sandboxed iframe. Inline rendering is an alternative *delivery surface* for the candidate interaction; it is not a third `proof_delivery` mode, and it does not change how proofs are delivered or validated.
+
+An [=Identity Verifier=] that supports inline rendering advertises it by including `"embedded_app"` in its manifest's `proof_delivery_methods` (see [[#identity-discovery]]). A provider MAY then include the verifier's resource URI as `ui_resource` on the [=Verification Step=]:
+
+<div class="example">
+```json
+{
+  "step_id": "vs_1",
+  "type": "identity",
+  "verifier_id": "id.me",
+  "human_required": true,
+  "verification_url": "https://verify.id.me/flow/abc123",
+  "ui_resource": "ui://id.me/verify/abc123",
+  "proof_delivery": "provider_managed",
+  "expires_at": "2026-09-25T14:30:00Z"
+}
+```
+</div>
+
+**Fallback.** `ui_resource` is OPTIONAL and `verification_url` remains REQUIRED. A host that does not support MCP Apps, or a candidate on a surface that cannot render the resource, uses `verification_url` with no loss of function. Providers and [=Identity Verifiers=] MUST NOT return a [=Verification Step=] that can only be completed through `ui_resource`.
+
+**Proof delivery is unchanged.** For `provider_managed` steps, the verifier delivers the proof to the provider through the channels in [[#identity-delivery-provider]]; the app only drives the candidate interaction. For `agent_submitted` steps, the app returns the proof to the host, which supplies it to `submit_application` in `verification_proofs`, exactly as for a proof collected through the hosted flow. The exact channel by which an app hands the proof back to the host is not defined by this version.
+
+**Obligations:**
+
+- [=Identity Verifiers=] that declare `embedded_app` MUST serve a `ui://` resource that completes the same verification and yields the same [=Verification Proof=] as their hosted flow, and MUST keep `verification_url` valid as the fallback.
+- Providers MUST treat a step whose proof arrives through the app identically to one completed through `verification_url`. The delivery surface does not change how the proof is validated (see [[#identity-claim-validation]]).
+- Hosts render the resource in a sandbox and remain the enforcement point for permissions and for which origins the app may load (Content Security Policy), per MCP Apps.
+
+**Privacy.** The verifier owns and hosts the UI, which runs in the verifier's own origin inside the host's sandbox. Biometric data, documents and other PII captured by the app are handled by the verifier and MUST NOT be transmitted through OJCP (see [[#identity-no-pii]]). Only the signed, opaque [=Verification Proof=] crosses back through the protocol.
+
+OJCP defines only the advertisement (`embedded_app`), the `ui_resource` reference and the fallback contract; it does not define the UI itself.
+
 ## Proof Format and Required Claims ## {#identity-proof-format}
 
 The `proof_token` in a [=Verification Proof=] MUST be a JWS (JSON Web Signature, [[RFC7515]]) in compact serialization format.
@@ -1691,7 +1727,7 @@ When validating `iat` and `exp` claims, providers MUST allow for reasonable cloc
   "description": "Identity verification for workforce and government applications.",
   "verification_types": ["identity", "government_id", "biometric"],
   "verification_endpoint": "https://verify.id.me/ojcp/start",
-  "proof_delivery_methods": ["callback", "redirect", "polling"],
+  "proof_delivery_methods": ["callback", "redirect", "polling", "embedded_app"],
   "proof_format": "jws",
   "signing_algorithms": ["ES256"],
   "proof_ttl_seconds": 86400,
