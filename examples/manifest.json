@@ -1,5 +1,5 @@
 {
-  "ojcp_version": "0.1",
+  "ojcp_version": "0.3",
   "provider": {
     "name": "Acme Corp Careers",
     "employer_id": "acme-corp",
@@ -30,7 +30,12 @@
   "apply_paths": ["ats_direct", "provider_hosted"],
   "auth": {
     "required": false,
-    "optional_scopes": ["candidate_context", "application_tracking"]
+    "optional_scopes": ["candidate_context", "application_tracking", "restricted_feed"],
+    "agent_signatures": {
+      "supported": true,
+      "algorithms": ["ed25519", "ecdsa-p256-sha256"],
+      "required_for": ["restricted_feed"]
+    }
   },
   "rate_limits": {
     "anonymous_rps": 10,
@@ -44,5 +49,10 @@
       "verification_types": ["identity", "government_id"],
       "required_for_paths": ["ats_direct"]
     }
-  ]
+  ],
+  "attribution": {
+    "supported": true,
+    "methods": ["impression_match", "reference"],
+    "window_days": 30
+  }
 }

@@ -40,9 +40,9 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["callback", "redirect", "polling"]
+        "enum": ["callback", "redirect", "polling", "embedded_app"]
       },
-      "description": "Methods this verifier supports for delivering proofs. 'callback': verifier POSTs proof to the provider's callback_url (server-to-server). 'redirect': verifier redirects candidate's browser to redirect_url with proof_token as a query parameter. 'polling': agent or provider polls the verifier's session status endpoint to retrieve the proof."
+      "description": "Methods this verifier supports for delivering proofs. 'callback': verifier POSTs proof to the provider's callback_url (server-to-server). 'redirect': verifier redirects candidate's browser to redirect_url with proof_token as a query parameter. 'polling': agent or provider polls the verifier's session status endpoint to retrieve the proof. 'embedded_app': the verifier serves a ui:// MCP Apps resource that hosts can render inline as an alternative to verification_url, completing the same verification and yielding the same proof; verification_url stays valid as the fallback. See spec § Inline Rendering via MCP Apps."
     },
     "proof_format": {
       "type": "string",

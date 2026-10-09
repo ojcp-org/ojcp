@@ -20,7 +20,8 @@
       "type": "object",
       "properties": {
         "referrer": { "type": "string", "description": "The source that referred the candidate (e.g., domain name, platform identifier)." },
-        "reference_id": { "type": "string", "description": "Opaque token the source can use for reconciliation (e.g., click ID, session ID)." }
+        "reference_id": { "type": "string", "description": "Opaque token the source can use for reconciliation (e.g., click ID, session ID)." },
+        "attribution_ref": { "type": "string", "description": "An attribution_ref previously returned by this provider for the job being applied to. Agents that apply under the same identity that received the job need not relay it. See spec § Attribution." }
       }
     }
   },

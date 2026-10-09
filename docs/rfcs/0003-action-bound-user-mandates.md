@@ -7,7 +7,7 @@ labels: rfc, security, privacy
 ## RFC: Action-bound user mandates and authorization conformance fixtures
 
 - **Author:** Mathieu Colla, independent contributor
-- **Status:** Draft
+- **Status:** Accepted
 - **Created:** 2026-08-14
 - **Related:** RFC 0001 — Verifiable agent identity via HTTP Message Signatures
 
@@ -292,3 +292,13 @@ clear migration path for existing unsigned application flows.
 - [ ] Identity verification
 - [x] Security / privacy model
 - [x] Conformance tests
+
+### For maintainers — comment period and resolution
+
+Comment period opens: 2026-08-14
+
+Comment period closes: 2026-09-13 (30 days)
+
+Resolution: Accepted (2026-10-08, after the close of the 30-day comment period; no blocking comments).
+
+Decision record: [docs/decisions/0003-action-bound-user-mandates.md](../decisions/0003-action-bound-user-mandates.md)

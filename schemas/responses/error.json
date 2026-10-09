@@ -8,7 +8,7 @@
   "properties": {
     "ojcp_version": {
       "type": "string",
-      "enum": ["0.1", "0.2"],
+      "enum": ["0.1", "0.2", "0.3"],
       "description": "The OJCP specification version."
     },
     "error_code": {
@@ -34,9 +34,11 @@
         "agent_algorithm_unsupported",
         "agent_signature_expired",
         "agent_nonce_replayed",
-        "agent_identity_mismatch"
+        "agent_id_malformed",
+        "agent_identity_mismatch",
+        "user_mandate_required"
       ],
-      "description": "Machine-readable error code. Agent identity errors (agent_*) are defined by the Agent Identity section. Verification-specific errors use the verification_errors array in submit_application responses."
+      "description": "Machine-readable error code. Agent identity errors (agent_*) are defined by the Agent Identity section. user_mandate_required is returned when a required user mandate is missing or fails verification (spec § User Mandates). Verification-specific errors use the verification_errors array in submit_application responses."
     },
     "message": {
       "type": "string",

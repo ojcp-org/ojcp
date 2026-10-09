@@ -142,7 +142,7 @@ OJCP defines six standard MCP-compatible tools. Providers MUST implement at leas
 
 #### `search_jobs`
 
-Search for open job opportunities. Returns a ranked list of jobs matching the provided criteria. When `candidate_context` is provided, results include `fit_score` and `fit_rationale`.
+Search for open job opportunities. Returns a ranked list of jobs matching the provided criteria. When `candidate_context` is provided, results include `fit_score` and `fit_rationale`. An optional `agent_declaration` lets a provider return jobs restricted to that agent: a job's optional `visibility` block (`tier`: `public` | `restricted` | `private`, plus an `audience` of `agent_id`s) is enforced server-side against a verified `agent_id` only, `private` jobs also require the provider-granted `restricted_feed` scope, and anonymous callers see only `public` jobs. `total_results` counts only jobs visible to the caller, and gating MUST be based on the agent's identity, never on candidate characteristics (RFC 0004).
 
 ```json
 {
@@ -154,6 +154,7 @@ Search for open job opportunities. Returns a ranked list of jobs matching the pr
       "location": { "type": "object", "properties": { "city": {}, "state": {}, "country": {}, "remote_ok": {}, "radius_miles": {} } },
       "filters": { "type": "object", "properties": { "employment_type": {}, "salary_min": {}, "salary_max": {}, "experience_level": {}, "posted_within_days": {} } },
       "candidate_context": { "$ref": "CandidateContext" },
+      "agent_declaration": { "$ref": "AgentDeclaration" },
       "pagination": { "type": "object", "properties": { "limit": {}, "offset": {} } }
     },
     "required": ["query"]
@@ -191,7 +192,7 @@ Providers MAY expose additional tools using namespaced names (e.g., `acme:get_re
 
 #### `JobPosting` (extends schema.org/JobPosting)
 
-OJCP extends schema.org's `JobPosting` with agent-specific fields: `skills_required`, `skills_preferred`, `team_context`, `urgency`, `application_volume_signal`, `requisition_id`, `department`, `hiring_manager`, `remote_policy`, `agent_notes`, and `apply_paths`. Each apply path declares `supports_agent_submission`, and optionally `requires_verification`, `accepted_verifiers`, and `product_name`.
+OJCP extends schema.org's `JobPosting` with agent-specific fields: `skills_required`, `skills_preferred`, `team_context`, `urgency`, `application_volume_signal`, `requisition_id`, `department`, `hiring_manager`, `remote_policy`, `eligibility`, `agent_notes`, `visibility`, and `apply_paths`. `eligibility` carries the hard gates (visa sponsorship, relocation, security clearance); every gate can say "not stated", and an absent or unstated gate is never read as a negative. Each apply path declares `supports_agent_submission`, and optionally `requires_verification`, `accepted_verifiers`, and `product_name`.
 
 ```json
 {
@@ -229,11 +230,11 @@ Consent-scoped candidate profile. Agents MUST NOT transmit candidate data beyond
 
 #### `AgentDeclaration`
 
-Agent self-identification for audit trails and rate limiting. Includes `agent_id` (reverse-domain notation), `acting_on_behalf_of`, `interaction_mode`, and optional `user_consent_token`.
+Agent self-identification for audit trails and rate limiting. Includes `agent_id` (reverse-domain notation), `acting_on_behalf_of`, `interaction_mode`, and optional `user_consent_token`. An optional `user_mandate` carries a user's authorization for one specific action: a credential (an SD-JWT VC) bound to the agent's signing key and to a canonical statement of the action — resource server, employer (on a multi-tenant ATS), job, and for `submit_application` the application, a digest of the submitted candidate data, and a provider-issued single-use nonce. Providers that require one verify it fail-closed and never treat `acting_on_behalf_of`, a platform signature, or an identity-verification proof as user authority.
 
 #### `VerificationStep`
 
-A discrete verification action the candidate must complete. Includes `step_id`, `type` (identity, government_id, biometric, background_check, etc.), `verifier_id`, `verification_url`, `human_required` flag, and `proof_delivery` (`"agent_submitted"` or `"provider_managed"`). The `proof_delivery` field determines whether the agent must collect and submit the proof, or the provider handles it directly. The agent cannot complete steps where `human_required` is true.
+A discrete verification action the candidate must complete. Includes `step_id`, `type` (identity, government_id, biometric, background_check, etc.), `verifier_id`, `verification_url`, `human_required` flag, and `proof_delivery` (`"agent_submitted"` or `"provider_managed"`). The `proof_delivery` field determines whether the agent must collect and submit the proof, or the provider handles it directly. The agent cannot complete steps where `human_required` is true. An optional `ui_resource` (a `ui://` MCP Apps resource) lets the host render the verifier's flow inline; `verification_url` stays required as the fallback (RFC 0005).
 
 #### `VerificationProof`
 
@@ -241,7 +242,7 @@ A signed JWS artifact issued by an Identity Verifier. Contains no PII. The `proo
 
 #### `VerifierManifest`
 
-Discovery document hosted by verifiers at `/.well-known/ojcp-verifier.json`. Declares `verification_types`, `proof_format` (`jws` for v0.1; encrypted formats may be added in future versions), `signing_algorithms`, `public_keys_url` (JWKS endpoint), `proof_ttl_seconds`, and `proof_delivery_methods` (`callback`, `redirect`, `polling`).
+Discovery document hosted by verifiers at `/.well-known/ojcp-verifier.json`. Declares `verification_types`, `proof_format` (`jws` for v0.1; encrypted formats may be added in future versions), `signing_algorithms`, `public_keys_url` (JWKS endpoint), `proof_ttl_seconds`, and `proof_delivery_methods` (`callback`, `redirect`, `polling`, `embedded_app`).
 
 ---
 
@@ -252,7 +253,7 @@ As AI agents begin submitting applications on behalf of candidates, employers in
 **The flow:**
 
 1. Agent calls `begin_application` — provider creates a verification session with each required verifier, then returns `status: "pending_verification"` with `verification_steps` (each declaring a `proof_delivery` mode).
-2. Agent presents the `verification_url` to the candidate (opens browser, deep link).
+2. Agent presents the `verification_url` to the candidate (opens browser, deep link), or the host renders the step's optional `ui_resource` inline via MCP Apps when the verifier supports it.
 3. Candidate completes verification with the Identity Verifier (face scan, ID upload, etc.).
 4. Proof delivery depends on the step's `proof_delivery` mode:
    - **`agent_submitted`** (default) — Verifier delivers the proof to the agent (via redirect or polling). Agent calls `submit_application` with the proof(s) and session token.
@@ -305,16 +306,19 @@ OJCP normalizes the fragmented landscape of application mechanisms:
 
 Apply paths MAY declare `requires_verification: true` and `accepted_verifiers` to require identity verification before agent submission. A `form_skill_url` field can reference a companion form skill descriptor to teach agents how to fill out complex forms.
 
-### 8. Source Attribution
+### 8. Attribution
 
-Both `begin_application` and `submit_application` accept an optional `source_attribution` object:
+Providers attribute applications to the source that surfaced the job from evidence they already hold: the caller's authenticated or verified identity, and the jobs they served it. An agent that searches and applies under the same identity is credited without relaying anything (RFC 0007).
+
+Providers MAY return an opaque `attribution_ref` on each search and detail result. An agent that hands a job to another agent or platform passes it along, and the applying agent can return it in `source_attribution.attribution_ref`. Both `begin_application` and `submit_application` accept an optional `source_attribution` object:
 
 | Field | Description |
 |---|---|
+| `attribution_ref` | Provider-issued reference from a search or detail result, used when a different identity applies |
 | `referrer` | The source that referred the candidate (e.g., domain name, platform identifier) |
-| `reference_id` | Opaque token the source can use for reconciliation (e.g., click ID, session ID) |
+| `reference_id` | Opaque token the source can use for its own reconciliation (e.g., click ID, session ID) |
 
-This enables job boards and aggregators to track referral value without baking ad-tech semantics into the protocol. Analogous to HTTP's `Referer` header or email's `List-Unsubscribe`.
+Providers declare support in the manifest's `attribution` block (`methods`, `window_days`). Matching never uses fingerprinting, and impressions are recorded against the calling software, never the candidate.
 
 ---
 

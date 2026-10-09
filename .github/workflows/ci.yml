@@ -3,6 +3,8 @@ name: CI
 on:
   push:
     branches: [main]
+    # A release tag rebuilds the site so its /<version>/ snapshot is published.
+    tags: ["v*"]
   pull_request:
     branches: [main]
 
@@ -37,8 +39,12 @@ jobs:
           ajv validate -s schemas/manifest.json -d examples/manifest.json --spec=draft2020 -c ajv-formats
           echo "Validating examples/job-posting.json"
           ajv validate -s schemas/job-posting.json -d examples/job-posting.json --spec=draft2020 -c ajv-formats
+          echo "Validating examples/job-posting-restricted.json"
+          ajv validate -s schemas/job-posting.json -d examples/job-posting-restricted.json --spec=draft2020 -c ajv-formats
           echo "Validating examples/search-response.json"
           ajv validate -s schemas/responses/search-jobs.json -d examples/responses/search-response.json --spec=draft2020 -c ajv-formats
+          echo "Validating examples/agent-identity.json"
+          ajv validate -s schemas/agent-identity.json -d examples/agent-identity.json --spec=draft2020 -c ajv-formats
 
   build-spec:
     name: Build Bikeshed spec
@@ -59,7 +65,7 @@ jobs:
   deploy-pages:
     name: Deploy to GitHub Pages
     needs: build-spec
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -68,17 +74,30 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # Always publish main as the latest spec, even when a tag push triggered the run;
+      # full history brings the release tags the snapshots are built from.
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
       - run: pip install --no-cache-dir bikeshed && bikeshed update
       - name: Build and prepare pages
         run: |
-          bikeshed spec spec/ojcp-v0.1.bs spec/ojcp-v0.1.html
-          mkdir -p _site/0.1
-          cp spec/ojcp-v0.1.html _site/0.1/index.html
-          echo '<meta http-equiv="refresh" content="0;url=/0.1/">' > _site/index.html
+          set -euo pipefail
+          mkdir -p _site
+          # Latest spec at the site root.
+          bikeshed spec spec/ojcp-v0.1.bs _site/index.html
+          # Every release keeps a permanent URL, /<version>/, built from its tag.
+          for tag in $(git tag --list 'v*' --sort=version:refname); do
+            version="${tag#v}"
+            git worktree add --detach "$RUNNER_TEMP/ojcp-$version" "$tag"
+            mkdir -p "_site/$version"
+            bikeshed spec "$RUNNER_TEMP/ojcp-$version/spec/ojcp-v0.1.bs" "_site/$version/index.html"
+            git worktree remove --force "$RUNNER_TEMP/ojcp-$version"
+          done
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

@@ -1,5 +1,5 @@
 {
-  "ojcp_version": "0.1",
+  "ojcp_version": "0.3",
   "application_id": "app_abc123",
   "status": "pending_verification",
   "apply_path": {
@@ -17,6 +17,7 @@
       "verifier_id": "id.me",
       "verifier_name": "ID.me",
       "verification_url": "https://verify.id.me/ojcp?session=xyz789",
+      "ui_resource": "ui://id.me/verify/xyz789",
       "required": true,
       "human_required": true,
       "estimated_completion_minutes": 5,
@@ -25,5 +26,9 @@
     }
   ],
   "session_token": "sess_def456",
-  "expires_at": "2026-03-20T12:00:00Z"
+  "mandate_nonce": "mn_xBVlesPAiuvWDyyxUDEDzDTG",
+  "expires_at": "2026-03-20T12:00:00Z",
+  "attribution": {
+    "method": "impression_match"
+  }
 }

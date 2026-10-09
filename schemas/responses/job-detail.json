@@ -8,7 +8,7 @@
   "properties": {
     "ojcp_version": {
       "type": "string",
-      "enum": ["0.1", "0.2"],
+      "enum": ["0.1", "0.2", "0.3"],
       "description": "The OJCP specification version."
     },
     "job": {
@@ -43,6 +43,10 @@
     "fit_rationale": {
       "type": "string",
       "description": "Explanation of the fit score. Present only when candidate_context was provided."
+    },
+    "attribution_ref": {
+      "type": "string",
+      "description": "Opaque, provider-issued attribution reference for this impression. Agents that hand this job to another agent or platform SHOULD pass it along; agents MAY pass it back in source_attribution.attribution_ref. See spec § Attribution."
     }
   }
 }

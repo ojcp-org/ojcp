@@ -14,10 +14,22 @@ Boilerplate: conformance no, copyright no
 </pre>
 
 <pre class='metadata'>
-Text Macro: VERSION 0.2
+Text Macro: VERSION 0.3
 </pre>
 
 <pre class='link-defaults'>
+spec:dom; type:dfn; for:/; text:document
+</pre>
+
+<pre class="biblio">
+{
+  "SD-JWT-VC": {
+    "title": "SD-JWT-based Verifiable Digital Credentials (SD-JWT VC)",
+    "href": "https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/",
+    "publisher": "IETF",
+    "status": "Internet-Draft"
+  }
+}
 </pre>
 
 <pre class="copyright">
@@ -92,7 +104,7 @@ The manifest MUST be served with `Content-Type: application/json`.
 
 The manifest MUST include:
 
-- `ojcp_version` — The OJCP specification version (currently `"0.2"`).
+- `ojcp_version` — The OJCP specification version (currently `"0.3"`).
 - `provider` — An object with at minimum a `name` field identifying the provider.
 - `tools` — An array of OJCP tool names supported by this provider.
 
@@ -109,11 +121,12 @@ The manifest MAY include:
 
 - `resume_upload` — An endpoint accepting candidate resume uploads from agents that lack their own file hosting. See [[#resume-upload]].
 - `signature` — A cryptographic [=Manifest Signature=] enabling agents to verify the manifest's authenticity. Required to reach the `verified` registry [=trust tier=]. See [[#provider-trust]].
+- `attribution` — How the provider attributes applications to the source that surfaced the job. See [[#attribution]].
 
 <div class="example">
 ```json
 {
-  "ojcp_version": "0.2",
+  "ojcp_version": "0.3",
   "provider": {
     "name": "Acme Corp Careers",
     "employer_id": "acme-corp",
@@ -147,7 +160,12 @@ The manifest MAY include:
       "verification_types": ["identity", "government_id"],
       "required_for_paths": ["ats_direct"]
     }
-  ]
+  ],
+  "attribution": {
+    "supported": true,
+    "methods": ["impression_match", "reference"],
+    "window_days": 30
+  }
 }
 ```
 </div>
@@ -162,9 +180,11 @@ Search for open job opportunities. Returns a ranked list of jobs matching the pr
 
 **Required input:** `query` (string)
 
-**Optional input:** `location`, `filters`, `candidate_context`, `pagination`
+**Optional input:** `location`, `filters`, `candidate_context`, `agent_declaration`, `pagination`
 
 When [=Candidate Context=] is provided, the provider SHOULD return personalized results including `fit_score` and `fit_rationale` for each result.
+
+When an [=Agent Declaration=] is provided, the provider MAY use the declared `agent_id` to return jobs restricted to that agent, subject to [[#search-visibility]].
 
 <div class="example">
 ```json
@@ -185,6 +205,7 @@ When [=Candidate Context=] is provided, the provider SHOULD return personalized 
           "state": { "type": "string" },
           "country": { "type": "string" },
           "remote_ok": { "type": "boolean" },
+          "remote_policy": { "type": "array", "items": { "type": "string", "enum": ["on_site", "hybrid", "remote", "flexible"] } },
           "radius_miles": { "type": "number" }
         }
       },
@@ -205,6 +226,7 @@ When [=Candidate Context=] is provided, the provider SHOULD return personalized 
         }
       },
       "candidate_context": { "$ref": "https://ojcp.dev/schemas/v0.1/candidate-context.json" },
+      "agent_declaration": { "$ref": "https://ojcp.dev/schemas/v0.1/agent-declaration.json" },
       "pagination": {
         "type": "object",
         "properties": {
@@ -219,7 +241,48 @@ When [=Candidate Context=] is provided, the provider SHOULD return personalized 
 ```
 </div>
 
-**Response:** Returns `ojcp_version`, `query`, `total_results`, `returned`, `offset`, and a `jobs` array. Each job includes core fields (`ojcp_id`, `title`, `employer`, `datePosted`) plus summary data. When [=Candidate Context=] was provided, each job includes `fit_score` (0.0–1.0) and `fit_rationale`.
+**Response:** Returns `ojcp_version`, `query`, `total_results`, `returned`, `offset`, and a `jobs` array. Each job includes core fields (`ojcp_id`, `title`, `employer`, `datePosted`) plus summary data. When [=Candidate Context=] was provided, each job includes `fit_score` (0.0–1.0) and `fit_rationale`. Each job MAY include an `attribution_ref` ([=attribution reference=]; see [[#attribution]]).
+
+### Agent-Scoped Visibility ### {#search-visibility}
+
+A provider MAY limit which callers see a job by setting the job's <dfn>visibility</dfn> block on its [[#schema-job-posting]]. The block has two fields:
+
+- `tier` — one of:
+    - `public` (the default) — returned to all callers, as when no `visibility` block is present.
+    - `restricted` — returned only when the request carries a verified `agent_declaration` whose `agent_id` is in `audience`.
+    - `private` — as `restricted`, and the caller MUST additionally hold the provider-granted `restricted_feed` scope ([[#agent-manifest-policy]]). The existence of a `private` job MUST NOT be disclosed to unauthorized callers.
+- `audience` — an array of `agent_id`s permitted to see the job when `tier` is `restricted` or `private`. Matching is performed server-side only, against the verified identity.
+
+<div class="example">
+```json
+"visibility": {
+  "tier": "restricted",
+  "audience": ["ai.wayfarer.agent", "ai.northstar.assistant"]
+}
+```
+</div>
+
+The declared `agent_id` MUST be verified per [[#agent-verification]] before any `restricted` or `private` job is returned. An absent, unsigned, or unverifiable `agent_declaration` MUST be treated as anonymous, and an anonymous caller MUST receive only `public` jobs. A provider that gates any part of its feed MUST list `restricted_feed` in `auth.agent_signatures.required_for` ([[#agent-manifest-policy]]) so agents know a signed request is required. A provider grants a partner agent the `restricted_feed` scope through its existing allowlist or onboarding mechanism ([[#security-employer]]); possession of the scope, together with a verified identity, is what unlocks `private` jobs.
+
+Providers:
+
+- MUST evaluate `visibility` server-side, and MUST NOT return `restricted` or `private` jobs to callers that do not satisfy the audience and scope requirements against a verified identity.
+- MUST make `total_results` reflect only the set of jobs visible to the caller, and MUST NOT leak the count, existence, or any field of non-visible jobs to unauthorized callers.
+- MUST count only jobs visible to the caller in `get_employer_context`'s `open_roles_count` and in any other count or aggregate of jobs they return.
+- MUST answer a `get_job_detail` or `begin_application` request whose `job_id` names a job not visible to the caller exactly as for a nonexistent job, with a `job_not_found` error ([[#tool-errors]]), so that the response does not reveal that the job exists.
+- MUST NOT return `visibility.audience` in `search_jobs` or `get_job_detail` responses, since it would reveal other agents' identities. Returning `visibility.tier` is OPTIONAL.
+- MUST ignore a `visibility` block they do not support and treat the job as `public`, for forward compatibility.
+
+Agents:
+
+- SHOULD sign `search_jobs` requests ([[#agent-identity]]) and include an `agent_declaration` when they expect access to a provider's restricted inventory.
+- MUST NOT treat the absence of a job as proof that it does not exist.
+
+Visibility gating narrows who sees a job; it MUST NOT become a tool for opaque or discriminatory gatekeeping:
+
+- Gating MUST be based on the agent's identity and the provider's relationship with it, never on characteristics of the candidate the agent represents. A provider MUST NOT vary `visibility` by protected-class or protected-class-proxy attributes of candidates.
+- Restricting a job to an `audience` MUST NOT be used to evade equal-opportunity advertising obligations. Providers remain responsible for their own regulatory compliance regardless of feed segmentation.
+- Restriction is an explicit, opt-in provider choice for a specific job; absent a `visibility` block, a job is `public`.
 
 ## `get_job_detail` ## {#tool-get-job-detail}
 
@@ -247,7 +310,9 @@ Retrieve full details for a specific job posting, including responsibilities, qu
 ```
 </div>
 
-**Response:** Returns `ojcp_version` and a full `job` object conforming to the JobPosting schema. When `include_employer_context` is true, includes an `employer_context` object. When [=Candidate Context=] was provided, includes `fit_score` and `fit_rationale`.
+**Response:** Returns `ojcp_version` and a full `job` object conforming to the JobPosting schema. When `include_employer_context` is true, includes an `employer_context` object. When [=Candidate Context=] was provided, includes `fit_score` and `fit_rationale`. MAY include an `attribution_ref` ([=attribution reference=]; see [[#attribution]]).
+
+A job not visible to the caller under [[#search-visibility]] MUST be answered exactly as a nonexistent job, with `job_not_found`. The returned `job` MUST NOT include `visibility.audience`.
 
 ## `get_employer_context` ## {#tool-get-employer-context}
 
@@ -271,7 +336,7 @@ Retrieve contextual information about an employer — culture, team structure, b
 ```
 </div>
 
-**Response:** Returns `ojcp_version`, `employer_id`, `name`, and optional fields including `description`, `culture_context`, `industries`, `hq_location`, `benefits`, `hiring_process`, and `open_roles_count`.
+**Response:** Returns `ojcp_version`, `employer_id`, `name`, and optional fields including `description`, `culture_context`, `industries`, `hq_location`, `benefits`, `hiring_process`, and `open_roles_count`. `open_roles_count` counts only jobs visible to the caller ([[#search-visibility]]).
 
 ## `begin_application` ## {#tool-begin-application}
 
@@ -304,7 +369,8 @@ Providers SHOULD require [=Agent Declaration=] and MAY reject requests without a
         "description": "Attribution for the traffic source that led the candidate to this job. Enables job boards and aggregators to track referral value.",
         "properties": {
           "referrer": { "type": "string", "description": "The source that referred the candidate (e.g., domain name, platform identifier)." },
-          "reference_id": { "type": "string", "description": "Opaque token the source can use for reconciliation (e.g., click ID, session ID)." }
+          "reference_id": { "type": "string", "description": "Opaque token the source can use for reconciliation (e.g., click ID, session ID)." },
+          "attribution_ref": { "type": "string", "description": "An attribution_ref previously returned by this provider for the job being applied to." }
         }
       }
     },
@@ -316,12 +382,18 @@ Providers SHOULD require [=Agent Declaration=] and MAY reject requests without a
 
 **Response:** Returns `ojcp_version`, `application_id`, `status` (`initiated`, `pending_submission`, or `pending_verification`), and an `apply_path` descriptor with `type`, `required_fields`, `url`, and `supports_agent_submission`. When `status` is `pending_verification`, includes `verification_steps` — an array of [=Verification Steps=] the candidate must complete before the application can proceed — and `verification_deadline`, an ISO 8601 timestamp after which incomplete verifications cause the application to expire (see [[#identity-async-deadline]]). May include `session_token` for multi-step flows, `expires_at`, and `screening_questions` — an array of questions the candidate must answer, each with `question_id`, `question_text`, `answer_type`, and optional `options`. Questions MAY include validation constraints: `min_length`/`max_length` for text, `pattern` (regex) for format validation, and `min`/`max` for number and date answers. Agents include the answers in `submit_application`'s `application_data.answers` keyed by `question_id`.
 
+A provider that accepts [=user mandates=] for `submit_application` MUST include `mandate_nonce`, an unpredictable single-use value the agent binds into the mandate's [=action statement=] (see [[#mandate-nonce]]).
+
+A `begin_application` request for a job not visible to the caller under [[#search-visibility]] MUST be answered exactly as for a nonexistent job, with `job_not_found`.
+
+A provider that declares attribution support establishes the application's attribution when it handles `begin_application`, and MAY report the outcome in an `attribution` object (`method`, and `referred_by` where applicable). See [[#attribution]].
+
 <div class="example">
 A `begin_application` response requiring identity verification:
 
 ```json
 {
-  "ojcp_version": "0.2",
+  "ojcp_version": "0.3",
   "application_id": "app_abc123",
   "status": "pending_verification",
   "apply_path": {
@@ -366,6 +438,8 @@ The `application_data` object carries the actual application payload — screeni
 
 The `resume_url` field requires a hosted URL. Agents with locally-stored resume files SHOULD use the provider's resume upload endpoint when declared (see [[#resume-upload]]) to obtain a valid URL. Agents that already have a hosted resume URL pass it directly.
 
+When a provider requires a [=user mandate=] for the call, the agent carries it in `agent_declaration.user_mandate`, bound to this request's `application_id`, `mandate_nonce`, and candidate data (see [[#user-mandates]]).
+
 <div class="example">
 ```json
 {
@@ -407,7 +481,8 @@ The `resume_url` field requires a hosted URL. Agents with locally-stored resume 
         "description": "Attribution for the traffic source. Same schema as begin_application.",
         "properties": {
           "referrer": { "type": "string" },
-          "reference_id": { "type": "string" }
+          "reference_id": { "type": "string" },
+          "attribution_ref": { "type": "string" }
         }
       }
     },
@@ -473,7 +548,7 @@ When any OJCP tool call fails, the provider MUST return a standard error envelop
 <div class="example">
 ```json
 {
-  "ojcp_version": "0.2",
+  "ojcp_version": "0.3",
   "error_code": "job_not_found",
   "message": "No job found with ID careers.acme.com:swe-99999.",
   "details": { "job_id": "careers.acme.com:swe-99999" }
@@ -519,7 +594,9 @@ Standard error codes:
     <tr><td>`agent_algorithm_unsupported`</td><td>Signature algorithm not accepted, or the wire `alg` conflicts with the resolved key.</td></tr>
     <tr><td>`agent_signature_expired`</td><td>The signature is expired, not yet valid, or its window exceeds the permitted maximum.</td></tr>
     <tr><td>`agent_nonce_replayed`</td><td>The `(keyid, nonce)` pair was already seen within the freshness window.</td></tr>
-    <tr><td>`agent_identity_mismatch`</td><td>The `Signature-Agent` origin does not match the `agent_id` registrable domain.</td></tr>
+    <tr><td>`agent_id_malformed`</td><td>The `agent_id` presented for verification does not match the grammar in [[#agent-id-grammar]].</td></tr>
+    <tr><td>`agent_identity_mismatch`</td><td>The `agent_id` does not bind to the `Signature-Agent` origin by either mechanism in [[#agent-identity-binding]].</td></tr>
+    <tr><td>`user_mandate_required`</td><td>The context requires a [=user mandate=] and none was presented, or the presented mandate failed verification. See [[#mandate-errors]].</td></tr>
   </tbody>
 </table>
 
@@ -567,6 +644,29 @@ Three of these name levels that cannot be folded into a neighbour without losing
 - `intern` is an internship, not a junior role. A candidate looking for one does not want the other, so collapsing it into `entry` returns the wrong jobs in both directions. A posting SHOULD carry `employmentType: internship` alongside it; the two fields answer different questions — the nature of the engagement, and the seniority it is pitched at.
 - `staff` and `principal` are senior individual-contributor levels. Collapsing them into `senior` makes the IC track invisible: an agent searching for a principal role receives ordinary senior ones.
 
+`jobLocation` accepts either a single `Place` or an array of `Place`. [schema.org's JobPosting](https://schema.org/JobPosting) already permits both, and a role that an employer will fill in more than one place cannot be expressed by a single value. A posting open in several locations SHOULD carry every location the employer accepts.
+
+Providers MUST NOT reduce a multi-location posting to one of its locations. Doing so asserts a geographic restriction the employer never stated, and an agent filtering on that value discards the posting everywhere else it is open. Where no location is known, the field is omitted rather than guessed.
+
+Agents MUST accept both forms. A single `Place` remains valid and is the expected shape for a single-location role, so consumers written against earlier versions keep working; an agent that reads only the single form will misread a multi-location posting and SHOULD be updated to handle the array.
+
+<div class="example">
+```json
+{
+  "jobLocation": { "@type": "Place", "address": { "addressLocality": "Chicago", "addressRegion": "IL", "addressCountry": "US" } }
+}
+```
+
+```json
+{
+  "jobLocation": [
+    { "@type": "Place", "address": { "addressLocality": "Remote", "addressCountry": "US" } },
+    { "@type": "Place", "address": { "addressLocality": "Remote", "addressCountry": "CA" } }
+  ]
+}
+```
+</div>
+
 Note: Enumerated fields such as `employmentType` and `experience_level` define standard values but are intentionally open — providers MAY use additional values (e.g., `freelance`, `volunteer`, `apprenticeship`) and agents SHOULD handle unrecognized values gracefully. OJCP normalizes employment types to lowercase (e.g., `full_time`); schema.org uses UPPERCASE (`FULL_TIME`) — providers SHOULD map accordingly.
 
 OJCP-specific extension fields:
@@ -579,12 +679,18 @@ OJCP-specific extension fields:
 - `department` — Department or business unit
 - `hiring_manager` — Name of the hiring manager
 - `remote_policy` — Remote work policy (`on_site`, `hybrid`, `remote`, `flexible`)
+- `eligibility` — Hard eligibility gates (visa sponsorship, relocation, security clearance); see [[#schema-job-posting-eligibility]]
 - `agent_notes` — Free-text notes for agent consumption
+- `visibility` — Which callers may see the job in `search_jobs` (`tier`: `public`, `restricted`, `private`; `audience`: permitted `agent_id`s). Absent means `public`. See [[#search-visibility]].
 - `official_job_url` — The canonical public URL of the posting on the employer's official careers site or ATS
 
 The posting MAY also carry `url`, the general schema.org web URL for the posting. `url` and `official_job_url` serve distinct purposes and SHOULD NOT be conflated: `url` is a general link that MAY point to an aggregator or third-party board, whereas `official_job_url` asserts the canonical source hosted by the employer.
 
-`official_job_url` is a candidate-facing trust anchor. Because a bare URL is spoofable, when a provider serves a signed manifest ([[#provider-trust]]) an agent SHOULD verify that the registrable domain of `official_job_url` matches the provider's verified domain before presenting it as authoritative, and MAY surface it to the candidate as a way to manually confirm a posting's legitimacy or as a fallback when no agent apply path is available. Agents MUST NOT treat `url` as carrying this guarantee.
+`official_job_url` is a candidate-facing verification anchor, and MUST be an `https` URL. Its trust is rooted in the provider that serves it: when a provider serves a signed manifest ([[#provider-trust]]) from a verified domain, an agent extends `official_job_url` the same trust it extends that provider. The URL's own registrable domain is NOT the anchor. An employer that publishes through a third-party ATS has a canonical URL on the ATS vendor's domain (for example `acme.myworkdayjobs.com`), which is legitimate and matches neither the employer's nor the provider's domain, so a domain-equality check against the provider would reject valid postings.
+
+Where an employer's legitimate hosts are declared in `employer.official_domains`, an agent MAY corroborate `official_job_url` against that list. Because ATS hosts are shared across tenants, this comparison MUST be at the host level, not the registrable domain. It is a corroboration signal, not proof of employer identity: the employer is not a party to OJCP and attests nothing directly, so a match raises confidence while a mismatch does not by itself invalidate the posting.
+
+On a URL it cannot corroborate, an agent SHOULD lower its confidence or surface the URL for the candidate to confirm, and MUST NOT discard the posting on that basis alone. It MAY surface `official_job_url` as a way to manually confirm a posting's legitimacy or as a fallback when no agent apply path is available. Agents MUST NOT treat `url` as carrying any of these properties.
 
 <div class="example">
 ```json
@@ -618,6 +724,41 @@ The posting MAY also carry `url`, the general schema.org web URL for the posting
       "supports_agent_submission": true
     }
   ]
+}
+```
+</div>
+
+### Eligibility Gates ### {#schema-job-posting-eligibility}
+
+A JobPosting MAY carry an `eligibility` object describing the **hard eligibility gates** of the role: conditions that decide whether an application can succeed at all, not whether it is a good fit. The object and every field inside it are OPTIONAL.
+
+<table class="data">
+  <thead>
+    <tr><th>Gate</th><th>Values</th><th>Meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`visa_sponsorship`</td><td>`offered`, `not_offered`, `unspecified`</td><td>Whether the employer will sponsor a work visa for this role.</td></tr>
+    <tr><td>`relocation`</td><td>`offered`, `not_offered`, `required`, `unspecified`</td><td>Whether the employer supports relocation. `required` means the role cannot be performed without relocating — a constraint on the candidate, not an offer to them.</td></tr>
+    <tr><td>`security_clearance`</td><td>`required`, `not_required`, `unspecified`</td><td>Whether the role requires a government security clearance.</td></tr>
+  </tbody>
+</table>
+
+Each gate is a closed enum that includes a member meaning "the posting did not say" (`unspecified`). The gates share this rule, not a vocabulary: a clearance is never offered, and relocation has a state (`required`) that neither `offered` nor `not_offered` expresses.
+
+A gate that is absent, or set to `unspecified`, MUST NOT be read as a negative. An absent gate means exactly `unspecified`. Agents MUST NOT treat it as `not_offered` or `not_required`, and MUST NOT exclude a posting on the basis of a gate the posting did not state. Collapsing "not stated" into "no" asserts a restriction the employer never wrote, and the failure is silent: the candidate never learns the job existed.
+
+Absence is permitted and means `unspecified`, but it cannot distinguish a provider that does not implement eligibility from a posting that said nothing. Providers MAY set `unspecified` explicitly to make their silence deliberate and readable.
+
+Agents MUST ignore enum members of a gate they do not recognise rather than rejecting the posting, per [[#conformance-extensibility]]. A gate may gain a state in a later revision, and that MUST NOT invalidate existing postings.
+
+<div class="example">
+```json
+{
+  "eligibility": {
+    "visa_sponsorship": "not_offered",
+    "relocation": "required",
+    "security_clearance": "unspecified"
+  }
 }
 ```
 </div>
@@ -677,7 +818,9 @@ A conforming [=Agent Declaration=] MUST include:
 - `agent_id` — Reverse-domain-notation identifier
 - `acting_on_behalf_of` — Who the agent represents (`human_user`, `recruiter`, `autonomous_workflow`)
 
-Agents SHOULD include a `user_consent_token` when submitting applications. For `autonomous` interaction modes, the token represents the operator's authorization rather than per-action user consent. The token format and verification mechanism are out of scope for v0.1 — providers decide what level of trust to require.
+Agents SHOULD include a `user_consent_token` when submitting applications. For `autonomous` interaction modes, the token represents the operator's authorization rather than per-action user consent. The token format and verification mechanism are not defined by this specification — providers decide what level of trust to require. Action-level user authorization is defined by [[#user-mandates]].
+
+Agents MAY include a `user_mandate`: a [=user mandate=] by which the user authorizes the agent's signing key to perform one specific action. Unlike `user_consent_token`, its profile and verification are defined by this specification ([[#user-mandates]]).
 
 <div class="example">
 ```json
@@ -752,6 +895,7 @@ A [=Verification Step=] MAY include:
 - `instructions` — Instructions for the agent to relay to the candidate
 - `estimated_completion_minutes` — Expected time to complete
 - `expires_at` — When the verification URL expires
+- `ui_resource` — A `ui://` URI of an [MCP Apps](https://apps.extensions.modelcontextprotocol.io) resource the host can render inline as an alternative to opening `verification_url`. See [[#identity-inline-mcp-apps]].
 
 ## VerificationProof ## {#schema-verification-proof}
 
@@ -783,7 +927,7 @@ A conforming [=Verifier Manifest=] MUST include:
 A [=Verifier Manifest=] SHOULD include:
 
 - `verification_endpoint` — URL for initiating verification sessions
-- `proof_delivery_methods` — Supported delivery methods (`callback`, `redirect`, `polling`)
+- `proof_delivery_methods` — Supported delivery methods (`callback`, `redirect`, `polling`, `embedded_app`). `embedded_app` advertises that the verifier can be rendered inline through MCP Apps; see [[#identity-inline-mcp-apps]].
 - `signing_algorithms` — Supported JWS algorithms (ES256 RECOMMENDED)
 - `proof_ttl_seconds` — Default time-to-live for issued proofs
 
@@ -825,6 +969,104 @@ Each [=apply path=] object MAY include:
 - `accepted_verifiers` — Array of [=Identity Verifier=] identifiers (e.g., `"id.me"`, `"clear"`) accepted for this [=apply path=]. If omitted when `requires_verification` is true, the provider accepts any verifier listed in the manifest's `supported_verifiers`.
 
 Providers are RECOMMENDED to implement at least one [=apply path=] where `supports_agent_submission` is `true`.
+
+# Attribution # {#attribution}
+
+Employers and their distribution partners pay for job distribution on the outcome it produces: an application. This section defines how a provider establishes which source surfaced the job behind an application.
+
+Attribution is **derived by the provider** from evidence it already holds: the identity of the caller and the jobs it served to that caller. An agent that searches and applies under the same identity is credited without relaying anything. [=Attribution references=] exist only for the case the provider cannot observe: a handoff between two different identities.
+
+This section standardizes how attribution evidence is established and reported. How credit is priced, split between sources, or billed is out of scope.
+
+Attribution is OPTIONAL. A provider that does not declare it in its [=Job Manifest=] has no obligations under this section.
+
+## Definitions ## {#attribution-definitions}
+
+: <dfn>Impression</dfn>
+:: A provider returning a job (by `ojcp_id`) to a caller in a `search_jobs` or `get_job_detail` response.
+
+: <dfn>Attributable identity</dfn>
+:: The identity an [=impression=] or application is recorded against. In order of strength: a verified `agent_id` ([[#agent-verification]]), then a credential the provider issued (API key, OAuth client). A self-asserted, unverified `agent_id` is **not** an attributable identity.
+
+: <dfn>Attribution window</dfn>
+:: The period after an [=impression=] during which an application can be credited to it.
+
+: <dfn>Attribution reference</dfn>
+:: An opaque, provider-issued value bound to one [=impression=], carried as `attribution_ref`.
+
+## Establishing Attribution ## {#attribution-rules}
+
+A provider that declares attribution support:
+
+- SHOULD record each [=impression=] against the caller's [=attributable identity=], keyed by `ojcp_id`, with the time and the result's rank. It MAY also record `fit_score`. Impression records MUST NOT contain [=Candidate Context=] contents or any candidate identifier.
+- MUST establish attribution when it handles `begin_application`, applying these rules in order:
+    1. **Reference.** If `source_attribution.attribution_ref` is present, valid, unexpired, and bound to the requested `job_id`, the [=impression=] it names is credited. If the reference was issued to a different [=attributable identity=] than the caller's, that identity is recorded as `referred_by`, and the caller as the applying agent (see [[#attribution-security]]).
+    2. **Impression match.** Otherwise, the most recent [=impression=] of the requested `job_id` served to the caller's [=attributable identity=] within the [=attribution window=] is credited (last touch).
+    3. **None.** Otherwise, the application is unattributed.
+- MUST NOT treat a missing `source_attribution` as unattributed when rule 2 applies.
+- MUST NOT match on IP address, user agent, device characteristics, or any other fingerprint. Rule 2 applies only to [=attributable identities=], so an anonymous caller can be credited only through rule 1.
+- MUST fix the attribution when it handles `begin_application`. `submit_application` inherits it through `application_id`. A provider MAY apply `source_attribution` supplied on `submit_application` only when the application was unattributed at `begin_application`.
+
+A `get_job_detail` response counts as an [=impression=]: an agent that fetched a job's detail has engaged with it, whether or not it ran a search first.
+
+## Attribution References ## {#attribution-references}
+
+A provider MAY include an `attribution_ref` on each job in a `search_jobs` response and on a `get_job_detail` response. An agent that hands a job to another agent or platform SHOULD pass the `attribution_ref` along with it. An agent MAY pass it back in `source_attribution.attribution_ref`; an agent that applies under the same identity that received the job need not.
+
+An `attribution_ref`:
+
+- MUST be opaque to agents and integrity-protected, so that an agent can neither forge one nor alter its contents.
+- MUST be bound to the `ojcp_id` it was issued for. A provider MUST ignore a reference presented for a different `job_id`.
+- SHOULD be bound to the [=attributable identity=] it was issued to, and SHOULD expire no later than the end of the [=attribution window=].
+
+A provider MUST treat an invalid, expired, or mismatched reference as absent, falling through to rule 2. A bad reference MUST NOT cause the application to be rejected.
+
+`source_attribution.referrer` and `source_attribution.reference_id` are values **the source** supplies for its own reconciliation, which a provider MAY echo back in reports. Providers MUST NOT require them, and SHOULD NOT rely on them alone as attribution evidence, because they are self-asserted.
+
+## Off-Protocol Applications ## {#attribution-off-protocol}
+
+When an [=apply path=] is completed outside OJCP (`email`, `external_redirect`, and any path with `supports_agent_submission: false`), the provider SHOULD embed an [=attribution reference=] in the apply `url` it returns. The parameter name and encoding are the provider's choice. Agents MUST pass apply URLs to the candidate unmodified, and in particular MUST NOT strip query parameters.
+
+Reporting the resulting conversion from an employer's ATS back to the provider is outside the agent–provider relationship and out of scope for this specification.
+
+## Manifest Declaration ## {#attribution-manifest}
+
+A provider that establishes attribution SHOULD declare it in the [=Job Manifest=]:
+
+<div class="example">
+```json
+"attribution": {
+  "supported": true,
+  "methods": ["impression_match", "reference"],
+  "window_days": 30
+}
+```
+</div>
+
+- `methods` lists the rules in [[#attribution-rules]] that the provider applies.
+- `window_days` is the [=attribution window=], RECOMMENDED 30. A provider MUST NOT retain impression records longer than its declared window.
+
+## Attribution Outcome ## {#attribution-outcome}
+
+A provider MAY report the outcome in the `begin_application` response, so that a source can confirm it was credited without waiting for an out-of-band report:
+
+<div class="example">
+```json
+"attribution": {
+  "method": "reference",
+  "referred_by": "com.example.jobboard"
+}
+```
+</div>
+
+`method` is one of `reference`, `impression_match`, or `none`. `referred_by` is present only when an [=attribution reference=] issued to another [=attributable identity=] was credited. A provider MUST NOT reveal anything else about another identity's impressions.
+
+## Security Considerations ## {#attribution-security}
+
+- **Spoofed identity.** Impression matching keys on [=attributable identities=] only. Matching on a self-asserted `agent_id` would let any caller manufacture or misdirect credit; see also [[#agent-identity]].
+- **Fabricated conversions.** `begin_application` is cheap to call. A provider that bills on outcomes SHOULD treat a submitted application, not an initiated one, as the conversion.
+- **Reference stuffing.** An identity could push its references into other agents' flows to claim credit for applications it did not drive. Rule 1 therefore records a foreign reference as `referred_by` alongside the applying identity, and never erases the applying identity's own evidence. How credit is divided is a commercial decision.
+- **Replay.** Binding a reference to an `ojcp_id` and expiring it with the [=attribution window=] limits replay to the job it was issued for and the window it was issued in.
 
 # Resume Upload # {#resume-upload}
 
@@ -884,7 +1126,7 @@ On success, the provider returns HTTP 200 with a JSON body:
 
 ```json
 {
-  "ojcp_version": "0.2",
+  "ojcp_version": "0.3",
   "resume_url": "https://uploads.careers.acme.com/r/abc123def?sig=...",
   "expires_at": "2026-04-30T12:00:00Z",
   "filename": "resume.pdf",
@@ -955,7 +1197,7 @@ OJCP-aware agents face three primary trust risks when interacting with providers
 2. **Manifest tampering.** A legitimate provider's manifest is intercepted or compromised — the served manifest is modified to redirect application submissions to an attacker-controlled endpoint.
 3. **Stale or revoked credentials.** A formerly-legitimate provider's signing key is compromised; agents that cached the manifest continue to trust it after the key has been rotated.
 
-Provider trust addresses all three. It does not address agent-side threats (a bad agent submitting spam to a legitimate provider) — those are addressed separately in [[#security-employer]] and [[#open-questions]].
+Provider trust addresses all three. It does not address agent-side threats (a bad agent submitting spam to a legitimate provider) — those are addressed by [[#agent-identity]], [[#user-mandates]] and [[#security-employer]].
 
 ## Manifest Signing ## {#trust-manifest-signing}
 
@@ -978,7 +1220,7 @@ A signed manifest:
 
 ```json
 {
-  "ojcp_version": "0.2",
+  "ojcp_version": "0.3",
   "provider": { "name": "Acme Corp Careers", "employer_id": "acme-corp" },
   "tools": ["search_jobs", "get_job_detail", "begin_application", "submit_application", "check_application_status"],
   "apply_paths": ["provider_hosted", "ats_direct"],
@@ -1141,12 +1383,11 @@ Providers SHOULD sign their manifests to enable the `verified` registry tier and
 `ai.wayfarer.agent`, so every mechanism that keys on `agent_id` (agent-scoped visibility,
 employer allowlists, rate limiting, abuse attribution, audit trails) is spoofable. This section
 defines how an agent makes its `agent_id` **cryptographically verifiable** using [[RFC9421]] HTTP
-Message Signatures with key discovery bound to the agent's reverse-domain identity. It was
-adopted via RFC 0001.
+Message Signatures with key discovery bound to the agent's reverse-domain identity.
 
 This is an **identity** layer, not an **authorization** layer, and it is **OPTIONAL**. A
 provider that declares no signature requirements and an agent that signs nothing behave exactly
-as elsewhere in v0.1 (the agent is treated as unauthenticated). Agent identity is distinct from
+as elsewhere in this specification (the agent is treated as unauthenticated). Agent identity is distinct from
 [[#identity-verification]], which verifies the human *candidate*; the two compose.
 
 ## Signing Profile ## {#agent-signing-profile}
@@ -1200,16 +1441,89 @@ Auth directory draft and is consumed — not registered — by OJCP.
 
 ## Identity Binding ## {#agent-identity-binding}
 
-The `Signature-Agent` origin MUST correspond to the **registrable domain** of `agent_id` — the
-domain obtained by reversing the reverse-domain identifier and taking its registrable domain per
-the Public Suffix List. For `ai.wayfarer.agent` the registrable domain is `wayfarer.ai`, so
-`Signature-Agent` MUST be on `wayfarer.ai` or a subdomain. The Public Suffix List **including its
-PRIVATE section** MUST be used (using the ICANN-only section would collapse, e.g.,
-`user.github.io` to `github.io` and let any `github.io` agent bind another's `agent_id`). Both the
-`agent_id`-derived domain and the `Signature-Agent` host MUST be normalized to their A-label
-(punycode) form and lowercased before comparison. This binding is what prevents an attacker from
-hosting keys on a domain they control while claiming another party's `agent_id`. (Note: this
-"registrable domain" is unrelated to the `@authority` covered component in
+Proving a signature proves control of the `Signature-Agent` origin. Binding is what makes that
+proof say something about `agent_id`: without it, any origin could sign and declare any
+identifier. Authority follows the DNS hierarchy — whoever controls a host controls every name
+beneath it — and an `agent_id` binds to an origin in exactly two ways, checked in this order.
+
+### Agent ID Grammar ### {#agent-id-grammar}
+
+An `agent_id` presented for verification MUST match:
+
+```
+agent-id = label 1*( "." label )                 ; at least two labels
+label    = let-dig [ *61( let-dig / "-" ) let-dig ]
+let-dig  = %x61-7A / DIGIT                       ; a-z / 0-9, lowercase only
+```
+
+and MUST NOT exceed 253 octets. Each label is a lowercase LDH hostname label ([[RFC1123]]
+§2.1); internationalized labels appear only in A-label (`xn--`) form. Providers MUST reject a
+non-conforming `agent_id` with `agent_id_malformed` and MUST NOT normalize it (no case folding,
+no IDNA conversion, no trimming): every comparison in this section is byte-exact.
+
+The grammar is that of a hostname because [[#agent-binding-delegated]] resolves the identifier
+as one. It is enforced on the verification path only; unsigned requests are unaffected.
+
+### Namespace Binding ### {#agent-binding-namespace}
+
+Let *host* be the `Signature-Agent` origin's host, lowercased, and let *namespace* be its labels
+in reverse order joined by `.`. The `agent_id` binds when it equals *namespace* or begins with
+*namespace* followed by `.`. IP-literal hosts never bind.
+
+<table class="data">
+  <thead>
+    <tr><th>`Signature-Agent` host</th><th>`agent_id`</th><th>Binds</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`agent.wayfarer.ai`</td><td>`ai.wayfarer.agent`</td><td>Yes — exact</td></tr>
+    <tr><td>`wayfarer.ai`</td><td>`ai.wayfarer.agent`</td><td>Yes — a host vouches for names beneath it</td></tr>
+    <tr><td>`evil.wayfarer.ai`</td><td>`ai.wayfarer.agent`</td><td>No — a child cannot claim its parent's names</td></tr>
+    <tr><td>`alice.github.io`</td><td>`io.github.bob.agent`</td><td>No — siblings cannot claim each other's names</td></tr>
+    <tr><td>`wayfarer.ai`</td><td>`ai.wayfarerx.agent`</td><td>No — prefixes match on label boundaries</td></tr>
+  </tbody>
+</table>
+
+This is the rule the MCP Registry applies to `com.example.*` names, applied here at request time
+instead of publish time. Because authority only ever flows from a host to names beneath it, no
+Public Suffix List lookup is needed: a tenant of a shared host (`alice.github.io`) can claim only
+its own names, and the only party able to claim names under a shared host is that host's
+operator, who already controls every subdomain's DNS.
+
+### Delegated Binding ### {#agent-binding-delegated}
+
+An agent whose keys are hosted by a third party — a signing service or an agent platform
+operating on its customer's behalf — signs from an origin outside its own namespace. The domain
+the `agent_id` names authorizes that origin explicitly.
+
+When [[#agent-binding-namespace]] does not hold, the provider MUST fetch an Agent Identity
+Document from `https://` + the `agent_id`'s labels in reverse order + `/.well-known/ojcp-agent.json`
+(for `com.acme.agent`, `https://agent.acme.com/.well-known/ojcp-agent.json`). The binding holds
+only if the document is a valid Agent Identity Document whose `agent_id` equals the presented
+`agent_id` and whose `signers` array contains the `Signature-Agent` origin. Origins are compared
+as ASCII serializations per [[RFC6454]] §6.2 (`https://host[:port]`, lowercase, no trailing
+slash).
+
+<div class="example">
+```json
+{
+  "agent_id": "com.acme.agent",
+  "signers": ["https://acme.agentplatform.example"]
+}
+```
+</div>
+
+The document is served by the host the `agent_id` names, never by the signer, so only the party
+controlling that host can authorize a signer for the identifier. The fetch is triggered by
+attacker-chosen input and MUST satisfy every SSRF requirement in [[#agent-key-discovery]].
+Providers SHOULD cache the document under the guidance of [[#trust-jwks]]; removing an origin
+from `signers` revokes it once cached copies expire. A missing, unreachable, oversized or
+invalid document means the binding does not hold.
+
+Providers MUST NOT fetch the Agent Identity Document when the namespace binding already holds,
+and MUST NOT consult any other location for it.
+
+Neither mechanism consults the Public Suffix List. (Note: the host in this section is the
+`Signature-Agent` origin's, unrelated to the `@authority` covered component in
 [[#agent-signing-profile]], which is the request's own host.)
 
 ## Verification ## {#agent-verification}
@@ -1221,20 +1535,28 @@ A provider that accepts a signed request MUST, in order:
 3. Verify `Content-Digest` matches the received (or empty) body.
 4. Verify freshness: `created` and `expires` MUST both be present; `created` MUST NOT be in the future beyond the clock-skew tolerance (RECOMMENDED ≤ 60s); `expires` MUST NOT be in the past; and the window (`expires` minus `created`) MUST NOT exceed 300s.
 5. Verify the `nonce` has not been seen for this `keyid` within the freshness window. Providers MUST maintain a replay cache retaining each `(keyid, nonce)` at least until its `expires`; because the window is capped at 300s (step 4) the cache is bounded. [[RFC9421]] defines `nonce` but leaves replay detection to the application.
-6. Verify the identity binding ([[#agent-identity-binding]]).
-7. Treat `agent_id` as **verified** only if all of the above pass.
+6. Verify `agent_id` against the grammar ([[#agent-id-grammar]]).
+7. Verify the identity binding: [[#agent-binding-namespace]], else [[#agent-binding-delegated]].
+8. Treat `agent_id` as **verified** only if all of the above pass.
 
 On any failure the provider MUST return the standard OJCP error envelope ([[#tool-errors]]) with
 one of the agent-signature error codes registered in [[#tool-errors]]: `agent_signature_missing`,
 `agent_signature_invalid`, `agent_key_not_found`, `agent_digest_mismatch`,
 `agent_algorithm_unsupported`, `agent_signature_expired`, `agent_nonce_replayed`,
-`agent_identity_mismatch` — and MUST NOT process the request as if the identity were verified.
+`agent_id_malformed`, `agent_identity_mismatch` — and MUST NOT process the request as if the
+identity were verified. A binding that fails by either mechanism, including an unavailable or
+invalid Agent Identity Document, is reported as `agent_identity_mismatch`.
 When a required context (see [[#agent-manifest-policy]]) is called without a valid signature, the
 provider MUST NOT fall back to unsigned processing.
 
 With a verified identity, providers SHOULD bind the apply session to the signer: a
 `submit_application` whose verified signer differs from the `begin_application` signer for the
 same session SHOULD be rejected.
+
+An `agent_id` on a request that does not complete the steps above — an unsigned request, in
+practice — is self-asserted. Providers MAY record it for audit, and MUST then record it as
+unverified. Providers MUST NOT use an unverified `agent_id` for allowlists, rate limiting,
+session binding, or any other access decision.
 
 ## Manifest Declaration ## {#agent-manifest-policy}
 
@@ -1260,7 +1582,7 @@ request that matches a listed token:
 
 - `begin_application`, `submit_application` — match a call to that tool.
 - `application_prefill`, `full_profile` — match when the request's [=Candidate Context=] declares that `consent_scope` (i.e., PII is in play).
-- `restricted_feed` — match when that optional scope is exercised.
+- `restricted_feed` — match when that optional scope is exercised, including any `search_jobs` request for which the provider would return `restricted` or `private` jobs ([[#search-visibility]]). A provider that gates any part of its feed MUST list this token.
 
 Permissionless unsigned access SHOULD remain available for anonymous `search_jobs` at
 `fit_scoring` scope and below.
@@ -1270,19 +1592,201 @@ Permissionless unsigned access SHOULD remain available for anonymous `search_job
 For an agent acting on behalf of an individual (who does not control a domain), identity is two
 facts established by two keys:
 
-1. **Platform attestation** — [[#agent-signing-profile]] through [[#agent-verification]], signed with the *platform's* key. The `agent_id` identifies the platform (e.g., `ai.northstar.assistant`, whose registrable domain — and therefore `Signature-Agent` origin — is `northstar.ai`). This proves *which software* is calling; it does not establish user authority.
-2. **User authorization** — an OPTIONAL `user_mandate` carried in the `AgentDeclaration`: a credential **signed by a key the user controls** that endorses the agent's signing key (a key-binding) and is bound to a hash of the specific action, realized as an SD-JWT Verifiable Credential so the agent can prove *"an authorized user of this platform mandated action X"* without disclosing *which* human unless the provider requires it.
+1. **Platform attestation** — [[#agent-signing-profile]] through [[#agent-verification]], signed with the *platform's* key. The `agent_id` identifies the platform (e.g., `ai.northstar.assistant`, signed from `https://northstar.ai`, whose namespace `ai.northstar` it falls under — [[#agent-binding-namespace]]). This proves *which software* is calling; it does not establish user authority.
+2. **User authorization** — an OPTIONAL `user_mandate` carried in the `AgentDeclaration`: a [=user mandate=] issued under the user's authority that endorses the agent's signing key (a key-binding) and is bound to a canonical statement of the specific action, realized as an SD-JWT Verifiable Credential so the agent can prove *"an authorized user of this platform mandated action X"* without disclosing *which* human unless the provider requires it. Its profile is defined in [[#user-mandates]].
 
 Normative rules:
 
-- Providers MUST NOT treat `acting_on_behalf_of` (a self-asserted string) as delegated user authority. Where user authority matters (e.g., `submit_application` for a named candidate), a provider requiring it MUST require a `user_mandate` whose authority chains to a user-controlled key, not the platform key.
-- The mandate's bound action hash MUST cover the material application content so a captured mandate cannot be replayed against a different submission.
+- Providers MUST NOT treat `acting_on_behalf_of` (a self-asserted string) as delegated user authority. Where user authority matters (e.g., `submit_application` for a named candidate), a provider requiring it MUST require a `user_mandate` admitted by its [=mandate-admission policy=] ([[#mandate-admission]]), whose authority is rooted in the user and never in the platform key.
+- The mandate's bound [=action statement=] MUST cover the material application content so a captured mandate cannot be replayed against a different submission ([[#mandate-action]]).
 - Agents SHOULD honor the existing `interaction_mode` distinction (`assisted`/`supervised` = user-present; `autonomous` = pre-authorized).
 - To preserve candidate privacy, agents SHOULD NOT transmit `acting_on_behalf_of` values or user identifiers in the clear where a selectively-disclosed `user_mandate` can carry them; providers MUST NOT require disclosure of the underlying human beyond what the matched context needs.
 
-The precise `user_mandate` schema is defined by a forthcoming consent RFC; this section fixes the
-*requirement* (user-rooted, key-bound, selectively disclosed) so the identity model is correct
-for personal agents from the outset.
+[[#user-mandates]] defines the minimum security profile of `user_mandate`: the claims it carries,
+the action it binds, and how a provider verifies and consumes it.
+
+# User Mandates # {#user-mandates}
+
+A platform signature ([[#agent-verification]]) proves which software made a request. It does not prove that a person authorized that software to take a particular action. This section defines the minimum interoperable security profile for `AgentDeclaration.user_mandate`: a credential that binds a user's authorization to one OJCP action and to the agent signing key that may exercise it.
+
+User mandates are OPTIONAL. This section applies only when a provider requires a user mandate for a request. A provider that requires none, and an agent that sends none, behave exactly as elsewhere in this specification. This section fixes the security boundary every user mandate MUST satisfy; the credential's media type and exact claim profile, a registry of [=action statement=] types, and manifest signalling are not defined by this version, and any credential that meets this profile conforms.
+
+## Definitions ## {#mandate-definitions}
+
+: <dfn>User mandate</dfn>
+:: A credential, carried in `AgentDeclaration.user_mandate`, by which a user authorizes one agent signing key to perform one OJCP action under the constraints it discloses.
+
+: <dfn>Action statement</dfn>
+:: The canonical `ojcp_action` object describing the authorized action ([[#mandate-action]]).
+
+: <dfn>Mandate-admission policy</dfn>
+:: A provider's policy that determines which mandate issuers or user-rooted keys are admissible for an action ([[#mandate-admission]]).
+
+## Three Claims, Three Decisions ## {#mandate-claims-separation}
+
+Providers MUST treat the following claims independently:
+
+<table class="data">
+  <thead>
+    <tr><th>Claim</th><th>Typical evidence</th><th>What it proves</th><th>What it does not prove</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Platform / agent identity</td><td>[[RFC9421]] signature and `Signature-Agent` ([[#agent-identity]])</td><td>The verified agent platform made this request.</td><td>A person authorized the request.</td></tr>
+    <tr><td>Candidate identity</td><td>[=Verification Proof=] ([[#identity-verification]]) or provider account flow</td><td>A verifier or provider made the stated identity claim.</td><td>That an agent may submit a particular application.</td></tr>
+    <tr><td>User authorization</td><td>Valid `user_mandate` admitted by the provider's [=mandate-admission policy=]</td><td>A user-authorized key authorized this action under the disclosed constraints.</td><td>The candidate's civil identity, unless a separate identity flow establishes it.</td></tr>
+  </tbody>
+</table>
+
+A provider MUST NOT promote a successful result in one row to a successful result in another. A [=Verification Proof=] is not a submission mandate, and a platform-signed `acting_on_behalf_of` value is not delegated user authority.
+
+## Mandate Admission ## {#mandate-admission}
+
+Cryptographic validity is necessary but not sufficient. A provider that requires a [=user mandate=] MUST have a [=mandate-admission policy=] that determines which mandate issuers or user-rooted keys are admissible for the relevant action. The policy sits outside the credential: an issuer cannot make itself authorized merely by issuing a valid credential, and a credential signed only by the agent platform's key is never user authority.
+
+Providers MAY admit a user-controlled key, a provider account-bound credential, or an independent identity-provider credential. A provider that must establish that the authorizing user is the named applicant MUST perform that binding through its own account, verified email, or [[#identity-verification]] process. A newly generated public key alone proves control of the key, not a person's legal identity.
+
+## Mandate Profile ## {#mandate-profile}
+
+`user_mandate` SHOULD be an SD-JWT Verifiable Credential ([[SD-JWT-VC]], [[RFC9901]]) in compact serialization, presented with a key-binding proof by the agent's signing key. A mandate accepted for an OJCP action MUST convey, directly or by selectively-disclosed claims:
+
+- `iss` and an issuer or user-root public-key reference;
+- `cnf.jkt` ([[RFC7800]], [[RFC9449]]), the [[RFC7638]] thumbprint of the *agent signing key* authorized to exercise the mandate — the same thumbprint the agent's request signature carries as `keyid` ([[#agent-signing-profile]]);
+- `aud`, the origin of the OJCP resource server that will consume the mandate. For a multi-tenant ATS this identifies the ATS endpoint, not the employer's public website ([[#mandate-multi-tenant]]);
+- `iat`, `nbf` when used, `exp`, and a unique `jti`;
+- an OJCP version identifier;
+- the [=action statement=] ([[#mandate-action]]); and
+- a revocation or status mechanism, unless the mandate has a short, provider-defined maximum lifetime and is single-use.
+
+The credential MUST NOT carry `acting_on_behalf_of` or other direct user identifiers unless the provider's matched action actually needs them. A provider MUST NOT require disclosure of a stable user identifier merely to validate delegation.
+
+<div class="example">
+The decoded issuer-signed claims of a single-use mandate for a `submit_application` call. The mandate carries the [=action statement=] by digest; it has no status claim because it is single-use and valid for ten minutes. Values are illustrative.
+
+```json
+{
+  "iss": "did:jwk:eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6Ik...",
+  "vct": "urn:example:ojcp-user-mandate",
+  "aud": "https://careers.acme.com",
+  "iat": 1773844800,
+  "nbf": 1773844800,
+  "exp": 1773845400,
+  "jti": "mnd_RGBLQJ-l7qj9DiNH",
+  "cnf": { "jkt": "tKwHslziExQ7dQgDX2HX8q9EuvAYmS_A3SKfjNHpdX8" },
+  "ojcp_version": "0.1",
+  "ojcp_action": "sha256:f-iFWllBWhQTjicNqPPPyN25DsN5rkUQThmL2e2VahM"
+}
+```
+</div>
+
+## Action Statement ## {#mandate-action}
+
+A mandate binds a stable representation of the action, not an HTTP or JSON-RPC payload. The [=action statement=] is a JSON object, `ojcp_action`. A mandate conveys it either as the object itself or, when embedded by digest, as the string `sha256:` followed by the base64url encoding (without padding) of the SHA-256 hash of its JCS serialization ([[!RFC8785]]).
+
+<table class="data">
+  <thead>
+    <tr><th>Field</th><th>Requirement</th><th>Value</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`ojcp_version`</td><td>OPTIONAL</td><td>The OJCP version, when the mandate carries its version identifier here.</td></tr>
+    <tr><td>`resource_server`</td><td>REQUIRED</td><td>The origin of the OJCP endpoint that consumes the mandate; equal to `aud`.</td></tr>
+    <tr><td>`employer`</td><td>REQUIRED when the resource server serves more than one employer</td><td>The employer context of the job ([[#mandate-multi-tenant]]).</td></tr>
+    <tr><td>`tool`</td><td>REQUIRED</td><td>The OJCP tool name, e.g. `submit_application`.</td></tr>
+    <tr><td>`job_id`</td><td>REQUIRED</td><td>The job's `ojcp_id`.</td></tr>
+    <tr><td>`application_id`</td><td>REQUIRED for `submit_application`</td><td>The `application_id` returned by `begin_application`.</td></tr>
+    <tr><td>`agent_id`</td><td>REQUIRED</td><td>The verified `agent_id` ([[#agent-verification]]).</td></tr>
+    <tr><td>`agent_key_thumbprint`</td><td>REQUIRED</td><td>The [[RFC7638]] thumbprint of the agent signing key; equal to `cnf.jkt`.</td></tr>
+    <tr><td>`candidate_data_digest`</td><td>REQUIRED for `submit_application`</td><td>A digest of the semantically material candidate data, defined below.</td></tr>
+    <tr><td>`mandate_nonce`</td><td>REQUIRED for `submit_application`</td><td>The single-use nonce the provider returned with the application session ([[#mandate-nonce]]).</td></tr>
+  </tbody>
+</table>
+
+`candidate_data_digest` covers the semantically material candidate data sent with the request, excluding transport metadata and the mandate itself. It prevents substituting a different resume reference, screening answer, contact address, or profile after consent. Its value is `sha256:` followed by the base64url encoding (without padding) of the SHA-256 hash of the JCS serialization of an object whose members are the request's `application_data` and `candidate_context`, exactly as sent; a member absent from the request is omitted.
+
+Providers and agents MUST ignore action-statement fields they do not recognize. A provider MUST reject a mandate when a field required for the requested tool is absent or does not match the action statement the provider independently reconstructs.
+
+<div class="example">
+The [=action statement=] whose digest the mandate above carries:
+
+```json
+{
+  "ojcp_version": "0.1",
+  "resource_server": "https://careers.acme.com",
+  "employer": { "ojcp_employer_id": "acme-corp" },
+  "tool": "submit_application",
+  "job_id": "careers.acme.com:analyst-2026-001",
+  "application_id": "app_abc123",
+  "agent_id": "ai.northstar.assistant",
+  "agent_key_thumbprint": "tKwHslziExQ7dQgDX2HX8q9EuvAYmS_A3SKfjNHpdX8",
+  "candidate_data_digest": "sha256:l8Kt_6K5fFTzhjg_iIYDcXjskULviQZ5h7QClTNOeqo",
+  "mandate_nonce": "mn_xBVlesPAiuvWDyyxUDEDzDTG"
+}
+```
+</div>
+
+### Multi-Tenant Resource Servers ### {#mandate-multi-tenant}
+
+An ATS that hosts application flows for many employers separates two security properties: the recipient of the mandate, and the employer the application is made to.
+
+- `aud` and `resource_server` identify the OJCP endpoint that consumes the mandate, such as an ATS tenant or a shared ATS API origin. They prevent a credential issued for one resource server from being presented to another.
+- The [=action statement=] MUST also bind the employer context of the job. A multi-tenant provider MUST include `employer.ojcp_employer_id` from the JobPosting ([[#schema-job-posting]]) when it is available. It MAY also include the posting's `official_job_url` when the provider has verified its association with the job. An unverified URL alone is not an authorization boundary.
+
+<div class="example">
+```json
+{
+  "resource_server": "https://apply.example-ats.com",
+  "employer": { "ojcp_employer_id": "acme" },
+  "tool": "submit_application",
+  "job_id": "apply.example-ats.com:1234",
+  "application_id": "app_7f3a...",
+  "agent_id": "ai.example.agent",
+  "agent_key_thumbprint": "base64url-rfc7638-thumbprint",
+  "candidate_data_digest": "sha256:base64url(JCS(candidate fields and answers))",
+  "mandate_nonce": "provider-issued-single-use-nonce"
+}
+```
+</div>
+
+The provider MUST reconstruct both bindings from its own session state, and MUST reject a mandate that matches its endpoint but names a different employer, tenant, job, or official-job anchor. A mandate for one employer therefore cannot be reused for another employer on the same ATS.
+
+### Mandate Nonce ### {#mandate-nonce}
+
+For `begin_application`, a provider MAY accept a mandate without `application_id`. When it does, the [=action statement=] MUST still bind the resource server, the employer when multi-tenant, the job, the agent signing key, the requested `consent_scope`, and any candidate data to be prefetched (by `candidate_data_digest` over the request's `candidate_context`).
+
+Before a mandate-bound `submit_application`, the provider MUST return an unpredictable, single-use `mandate_nonce` with the application session in the `begin_application` response. The agent binds it into the [=action statement=] for `submit_application`. The nonce keeps a low-entropy candidate-data digest from serving alone as a reusable or dictionary-attackable authorization handle.
+
+## Verification ## {#mandate-verification}
+
+A mandate binds to the agent signing key of a verified request, so a provider MUST NOT evaluate a `user_mandate` on a request whose agent identity has not been verified per [[#agent-verification]]. Such a request fails with the applicable agent-signature error code.
+
+For a context that requires a [=user mandate=], a provider MUST, in order:
+
+1. Verify the credential signature and the holder proof required by its selected SD-JWT VC profile.
+2. Apply its [=mandate-admission policy=] ([[#mandate-admission]]); cryptographic validity alone is not sufficient.
+3. Verify `aud`, the time bounds (`nbf` when present, and `exp`), the OJCP version, and that `cnf.jkt` equals the thumbprint of the currently verified agent signing key.
+4. Reconstruct the [=action statement=] from the received request and the provider's session state, then verify every field required for the requested tool, or the action digest.
+5. Enforce the mandate's revocation or status rule before executing the action. A mandate with no status mechanism is acceptable only within the provider's maximum lifetime for single-use mandates.
+6. Reject a mandate whose `jti` or `mandate_nonce` has already been consumed. For a successful terminal submission, atomically record both as consumed. A retry after an indeterminate network failure MAY use the provider's ordinary idempotency mechanism, but MUST NOT create a second application.
+7. Bind the acceptance decision to the application session, and invalidate it when the user revokes consent or the mandate expires.
+
+Failure at any step MUST fail closed, and MUST NOT fall back to treating `acting_on_behalf_of`, a platform signature, or a [=Verification Proof=] as authorization.
+
+### Key Binding and Rotation ### {#mandate-key-rotation}
+
+A mandate bound through `cnf.jkt` authorizes that exact agent signing key, not every key the agent platform may publish later. An agent's key directory ([[#agent-key-discovery]]) MUST retain the mandated key until the mandate expires; key rotation does not transfer a mandate to a new key. If the old key cannot remain available for verification, the user mandate MUST be reissued for the new key. This keeps the mandate's lifetime within the key-retention and rotation window, and avoids silently widening the user's authorization.
+
+## Signalling and Errors ## {#mandate-errors}
+
+A provider that requires a [=user mandate=] MUST document the requirement in its tool descriptions. This version defines no [=Job Manifest=] field for mandate requirements.
+
+When a context requires a [=user mandate=] and none is presented, or the presented mandate fails any step of [[#mandate-verification]], the provider MUST return the standard error envelope ([[#tool-errors]]) with `error_code` `user_mandate_required`. One code covers both cases, so the response does not reveal which check failed.
+
+The experimental `USER_MANDATE_FIXTURES` in the [OJCP conformance suite](https://github.com/ojcp-org/conformance) exercise these decisions — a missing or unadmitted mandate, a platform credential or [=Verification Proof=] presented as user authority, agent-key, audience, employer, job and candidate-data mismatches, expiry, revocation, and replay. They distinguish failure classes internally to test each check; those classes are not wire error codes.
+
+## Security and Privacy Considerations ## {#mandate-security}
+
+- **Hashes are not anonymization.** The [=action statement=] binds hashes rather than duplicating candidate data, but a hash of low-entropy data is not safe to disclose on its own. The provider-issued `mandate_nonce`, selective disclosure, short validity, and single use all contribute. Implementations SHOULD NOT log raw mandates, candidate data, or undisclosed SD-JWT claims.
+- **Revocation.** A candidate may withdraw consent while a long-running verification or application session is pending. Once revocation takes effect, the provider MUST stop accepting the mandate and invalidate the associated OJCP session.
+- **Key rotation.** Rotation MUST NOT weaken agent binding. Providers SHOULD cache a mandated key only as long as the directory's rotation and expiry rules allow, and agents MUST publish the old key for at least the full lifetime of every outstanding mandate that references it.
 
 # Identity Verification # {#identity-verification}
 
@@ -1407,6 +1911,41 @@ When `proof_delivery` is `"agent_submitted"` (or omitted), the agent is responsi
 
 Agents SHOULD prefer redirect-based delivery when available, falling back to polling. Agents MUST NOT poll more frequently than once every 5 seconds.
 
+### Inline Rendering via MCP Apps ### {#identity-inline-mcp-apps}
+
+A [=Verification Step=] MAY be completed inline in the conversation instead of through `verification_url`. The [MCP Apps extension](https://apps.extensions.modelcontextprotocol.io) lets a tool reference a `ui://` resource that the host renders in a sandboxed iframe. Inline rendering is an alternative *delivery surface* for the candidate interaction; it is not a third `proof_delivery` mode, and it does not change how proofs are delivered or validated.
+
+An [=Identity Verifier=] that supports inline rendering advertises it by including `"embedded_app"` in its manifest's `proof_delivery_methods` (see [[#identity-discovery]]). A provider MAY then include the verifier's resource URI as `ui_resource` on the [=Verification Step=]:
+
+<div class="example">
+```json
+{
+  "step_id": "vs_1",
+  "type": "identity",
+  "verifier_id": "id.me",
+  "human_required": true,
+  "verification_url": "https://verify.id.me/flow/abc123",
+  "ui_resource": "ui://id.me/verify/abc123",
+  "proof_delivery": "provider_managed",
+  "expires_at": "2026-09-25T14:30:00Z"
+}
+```
+</div>
+
+**Fallback.** `ui_resource` is OPTIONAL and `verification_url` remains REQUIRED. A host that does not support MCP Apps, or a candidate on a surface that cannot render the resource, uses `verification_url` with no loss of function. Providers and [=Identity Verifiers=] MUST NOT return a [=Verification Step=] that can only be completed through `ui_resource`.
+
+**Proof delivery is unchanged.** For `provider_managed` steps, the verifier delivers the proof to the provider through the channels in [[#identity-delivery-provider]]; the app only drives the candidate interaction. For `agent_submitted` steps, the app returns the proof to the host, which supplies it to `submit_application` in `verification_proofs`, exactly as for a proof collected through the hosted flow. The exact channel by which an app hands the proof back to the host is not defined by this version.
+
+**Obligations:**
+
+- [=Identity Verifiers=] that declare `embedded_app` MUST serve a `ui://` resource that completes the same verification and yields the same [=Verification Proof=] as their hosted flow, and MUST keep `verification_url` valid as the fallback.
+- Providers MUST treat a step whose proof arrives through the app identically to one completed through `verification_url`. The delivery surface does not change how the proof is validated (see [[#identity-claim-validation]]).
+- Hosts render the resource in a sandbox and remain the enforcement point for permissions and for which origins the app may load (Content Security Policy), per MCP Apps.
+
+**Privacy.** The verifier owns and hosts the UI, which runs in the verifier's own origin inside the host's sandbox. Biometric data, documents and other PII captured by the app are handled by the verifier and MUST NOT be transmitted through OJCP (see [[#identity-no-pii]]). Only the signed, opaque [=Verification Proof=] crosses back through the protocol.
+
+OJCP defines only the advertisement (`embedded_app`), the `ui_resource` reference and the fallback contract; it does not define the UI itself.
+
 ## Proof Format and Required Claims ## {#identity-proof-format}
 
 The `proof_token` in a [=Verification Proof=] MUST be a JWS (JSON Web Signature, [[RFC7515]]) in compact serialization format.
@@ -1480,7 +2019,7 @@ When validating `iat` and `exp` claims, providers MUST allow for reasonable cloc
   "description": "Identity verification for workforce and government applications.",
   "verification_types": ["identity", "government_id", "biometric"],
   "verification_endpoint": "https://verify.id.me/ojcp/start",
-  "proof_delivery_methods": ["callback", "redirect", "polling"],
+  "proof_delivery_methods": ["callback", "redirect", "polling", "embedded_app"],
   "proof_format": "jws",
   "signing_algorithms": ["ES256"],
   "proof_ttl_seconds": 86400,
@@ -1494,7 +2033,7 @@ The `public_keys_url` endpoint returns a JWK Set that providers use to validate 
 
 Providers declare accepted verifiers in their [=Job Manifest=] via the `supported_verifiers` field.
 
-Note: The verifier manifest schema also allows `proof_format: "jws+jwe"` to signal support for signed-then-encrypted proofs ([[RFC7516]]). However, JWE handling rules (key exchange, encryption algorithms, decryption procedures) are not defined in OJCP v0.1. Providers SHOULD reject `jws+jwe` proofs they cannot decrypt. Full JWE support will be defined in a future version of this specification.
+Note: The verifier manifest schema also allows `proof_format: "jws+jwe"` to signal support for signed-then-encrypted proofs ([[RFC7516]]). JWE handling rules (key exchange, encryption algorithms, decryption procedures) are not defined by this specification. Providers SHOULD reject `jws+jwe` proofs they cannot decrypt.
 
 ## Proof Reuse ## {#identity-proof-reuse}
 
@@ -1640,7 +2179,7 @@ A `begin_application` response with multiple verification steps — one provider
 
 ```json
 {
-  "ojcp_version": "0.2",
+  "ojcp_version": "0.3",
   "application_id": "app_fin_456",
   "status": "pending_verification",
   "apply_path": {
@@ -1843,7 +2382,7 @@ A public registry at `registry.ojcp.dev` indexes verified OJCP providers. The re
 
 **Response:** Returns `ojcp_version`, `total_results`, and a `providers` array. Each provider includes `domain`, `name`, `manifest_url`, `mcp_endpoint`, `industries`, `location`, `tools`, `apply_paths`, `has_agent_apply`, `trust_tier` ([[#trust-tiers]]), and `manifest_signed`.
 
-Registration is free and open. The registry performs basic provider verification before listing. The registration process, verification criteria, and governance model for the OJCP Registry will be defined in a separate operational document before the registry launches.
+Registration is free and open. The registry performs basic provider verification before listing. The registration process, verification criteria, and listing review are defined and operated by the [OJCP Registry](https://github.com/ojcp-org/registry).
 
 Note: The `find_ojcp_providers` response includes JSON-LD `@context` and `@type` fields on provider entries to support linked-data consumers. Standard OJCP tool responses (e.g., `search_jobs`, `get_job_detail`) do not include JSON-LD context — they use plain JSON. Job postings returned by providers MAY include JSON-LD context when served as structured data on web pages.
 
@@ -1858,6 +2397,7 @@ All OJCP endpoints — including `mcp_endpoint`, `feed_endpoints`, manifest URLs
 - [=Candidate Context=] is opt-in and scoped. Agents MUST declare `consent_scope` with every tool call that includes candidate data.
 - `resume_embedding_hash` enables fit-scoring without transmitting sensitive PII.
 - Candidates MUST be able to revoke agent access tokens, immediately invalidating in-flight apply sessions.
+- [=Impressions=] are recorded against the calling software's [=attributable identity=], never against the candidate, and are retained no longer than the declared [=attribution window=] (see [[#attribution]]). Providers MUST NOT fingerprint callers for attribution.
 
 ## Data Freshness ## {#security-data-freshness}
 
@@ -1882,7 +2422,7 @@ Agents MUST NOT retry before the indicated `Retry-After` / `retry_after_seconds`
 
 ## Employer Controls ## {#security-employer}
 
-- Providers MAY require [=Agent Declaration=] and allowlist specific agent IDs.
+- Providers MAY require [=Agent Declaration=] and allowlist specific agent IDs. An allowlist MUST match only verified agent IDs ([[#agent-verification]]). Providers MAY restrict individual jobs to allowlisted agents via the job's [=visibility=] block ([[#search-visibility]]).
 - All agent-initiated application events SHOULD be logged with agent identity and timestamp.
 - Providers MAY disable `supports_agent_submission` on any [=apply path=] at any time.
 
@@ -1904,7 +2444,7 @@ Agents MUST NOT retry before the indicated `Retry-After` / `retry_after_seconds`
 - Providers MUST validate the `aud` claim to prevent cross-provider proof replay.
 - Providers MUST validate that the `nonce` claim matches the expected `application_id` to prevent replay attacks.
 - Error responses and `warnings` arrays MUST NOT include candidate PII. Field names are acceptable; field values are not.
-- Session tokens MUST be cryptographically random with a minimum of 256 bits of entropy. Session tokens MUST have an expiration time (RECOMMENDED 30 minutes). Providers SHOULD bind session tokens to the originating `agent_id` and reject `submit_application` calls from a different agent than the one that called `begin_application`. The `application_id` MUST NOT be sequential or predictable — providers SHOULD use UUIDv4 or equivalent.
+- Session tokens MUST be cryptographically random with a minimum of 256 bits of entropy. Session tokens MUST have an expiration time (RECOMMENDED 30 minutes). Providers SHOULD bind session tokens to the originating verified `agent_id` and reject `submit_application` calls from a different verified agent than the one that called `begin_application`; an unverified `agent_id` MUST NOT be used for this binding ([[#agent-verification]]). The `application_id` MUST NOT be sequential or predictable — providers SHOULD use UUIDv4 or equivalent.
 
 # Interoperability # {#interop}
 
@@ -1915,6 +2455,9 @@ Agents MUST NOT retry before the indicated `Retry-After` / `retry_after_seconds`
   <tbody>
     <tr><td>**MCP**</td><td>OJCP tools are valid MCP tools. Any MCP client can call OJCP-compliant endpoints.</td></tr>
     <tr><td>**WebMCP**</td><td>OJCP tools can be registered via the imperative API (`document.modelContext.registerTool()`) or the declarative API (`toolname`/`tooldescription` form attributes) for browser agent access.</td></tr>
+    <tr><td>**MCP Apps**</td><td>Identity verifiers MAY render verification inline as a sandboxed `ui://` resource ([[#identity-inline-mcp-apps]]).</td></tr>
+    <tr><td>**HTTP Message Signatures / Web Bot Auth**</td><td>Verifiable agent identity ([[#agent-identity]]).</td></tr>
+    <tr><td>**SD-JWT VC**</td><td>User mandates SHOULD be key-bound SD-JWT verifiable credentials ([[#user-mandates]]).</td></tr>
     <tr><td>**schema.org/JobPosting**</td><td>OJCP's JobPosting extends schema.org. Existing structured data remains valid.</td></tr>
     <tr><td>**OpenAPI 3.1**</td><td>OJCP REST endpoints SHOULD be documented with OpenAPI 3.1.</td></tr>
     <tr><td>**Indeed XML / ZipRecruiter API**</td><td>OJCP can be layered over existing feeds via adapter.</td></tr>
@@ -1925,7 +2468,7 @@ Agents MUST NOT retry before the indicated `Retry-After` / `retry_after_seconds`
 
 This specification uses semantic versioning. Breaking changes require a major version bump and a 12-month deprecation window for the previous version.
 
-The current version is **0.1** (Draft).
+The current version is **0.3**. Minor versions are additive and backward-compatible: the schema namespace stays at `/v0.1/`, and `ojcp_version` accepts every earlier minor version, so implementations of earlier versions remain conforming.
 
 # Conformance # {#conformance}
 
@@ -1958,7 +2501,7 @@ OJCP schemas permit additional properties beyond those defined in this specifica
 
 # IANA Considerations # {#iana}
 
-This specification registers two well-known URIs per [[RFC8615]]:
+This specification registers three well-known URIs per [[RFC8615]]:
 
 <table class="data">
   <thead>
@@ -1967,6 +2510,7 @@ This specification registers two well-known URIs per [[RFC8615]]:
   <tbody>
     <tr><td>`ojcp.json`</td><td>OJCP community</td><td>[[#manifest-discovery]]</td></tr>
     <tr><td>`ojcp-verifier.json`</td><td>OJCP community</td><td>[[#identity-discovery]]</td></tr>
+    <tr><td>`ojcp-agent.json`</td><td>OJCP community</td><td>[[#agent-binding-delegated]]</td></tr>
   </tbody>
 </table>
 
@@ -1976,13 +2520,15 @@ OJCP additionally **consumes** the `/.well-known/http-message-signatures-directo
 for agent key discovery ([[#agent-key-discovery]]); that URI is defined and registered by the Web
 Bot Auth directory specification, not by OJCP.
 
-# Open Questions # {#open-questions}
+# Scope # {#scope}
 
-1. **Form skill schema** — The `form_skill_url` field on [=apply paths=] references a companion specification for form skill descriptors. This schema — covering field mappings, validation rules, conditional logic, and submission instructions — will be defined in a separate RFC.
-2. **CandidateContext as companion spec** — Privacy sensitivity may warrant splitting [=Candidate Context=] into its own RFC track in a future version.
-3. **Agent trust model** — *Resolved* by [[#agent-identity]] (RFC 0001): agent identity is made verifiable via [[RFC9421]] request signatures with domain-bound key discovery, distinct from and composing with candidate [[#identity-verification]]. Remaining open sub-question: whether the user-authorization `user_mandate` (see [[#agent-delegation]]) should be standardized in a future version rather than deferred to the companion consent RFC.
-4. **Registry governance** — Registration process, verification criteria, provider auditing, and dispute resolution for the OJCP Registry at `registry.ojcp.dev`.
-5. **Verifier internal protocol** — OJCP defines the [=Verification Proof=] envelope (JWS format, required claims, JWKS discovery, validation procedure) and the verifier discovery convention (`/.well-known/ojcp-verifier.json`). How verifiers conduct verification internally — candidate interaction flows, biometric capture, document processing — is intentionally out of scope. A companion specification may define verifier interoperability requirements in a future version.
+The following are deliberately outside this specification:
+
+1. **Form skill descriptors** — The `form_skill_url` field on [=apply paths=] references a form skill descriptor (field mappings, validation rules, conditional logic, submission instructions). Its format is defined outside this specification.
+2. **User mandate credential format** — [[#user-mandates]] defines the security profile every user mandate MUST satisfy. The credential media type, exact claim profile, and a registry of [=action statement=] types are not defined here.
+3. **Registry operations** — Registration, verification criteria, provider auditing, and dispute resolution are defined and operated by the [OJCP Registry](https://github.com/ojcp-org/registry).
+4. **Verifier internals** — OJCP defines the [=Verification Proof=] envelope (JWS format, required claims, JWKS discovery, validation procedure) and the verifier discovery convention (`/.well-known/ojcp-verifier.json`). How verifiers conduct verification internally — candidate interaction flows, biometric capture, document processing — is out of scope.
+5. **Conversion reporting** — How an employer's ATS reports the outcome of an application completed off-protocol back to the provider ([[#attribution-off-protocol]]) is between those parties.
 
 # Acknowledgements # {#acknowledgements}
 

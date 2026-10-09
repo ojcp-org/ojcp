@@ -38,6 +38,11 @@
         "ojcp_employer_id": {
           "type": "string",
           "description": "OJCP identifier for the employer."
+        },
+        "official_domains": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Hostnames the employer designates as legitimate sources for its postings, e.g. its careers site and ATS hosts ('careers.acme.com', 'acme.myworkdayjobs.com'). Agents MAY corroborate official_job_url against this list at the host level. Because ATS hosts are shared across tenants, match the full host, not the registrable domain."
         }
       }
     },
@@ -59,7 +64,7 @@
     "official_job_url": {
       "type": "string",
       "format": "uri",
-      "description": "The canonical public web URL of the job description page on the employer's official careers site or ATS. Serves as a candidate-facing trust and verification anchor: agents SHOULD verify that its registrable domain matches the provider's verified domain (see Provider Trust / .well-known/ojcp-keys.json)."
+      "description": "The canonical public web URL of the job description page on the employer's official careers site or ATS. A candidate-facing verification anchor; MUST be an https URL. Its trust is rooted in the provider that serves it (a verified, signed manifest), not in the URL's own domain, since an employer publishing through a third-party ATS has a canonical URL on the ATS vendor's domain. Agents MAY corroborate the host against employer.official_domains where declared. See spec § JobPosting."
     },
     "employmentType": {
       "type": "string",
@@ -70,21 +75,15 @@
       "description": "Required experience level. Standard values: intern, entry, mid, senior, staff, principal, lead, director, executive. intern denotes an internship and is distinct from entry — a candidate searching for one does not want the other. staff and principal are senior individual-contributor levels distinct from senior. Providers MAY use additional values."
     },
     "jobLocation": {
-      "type": "object",
-      "properties": {
-        "@type": {
-          "type": "string",
-          "const": "Place"
-        },
-        "address": {
-          "type": "object",
-          "properties": {
-            "addressLocality": { "type": "string" },
-            "addressRegion": { "type": "string" },
-            "addressCountry": { "type": "string" }
-          }
+      "description": "Where the role is based: a single Place, or an array of Place when the employer accepts the role in more than one location. schema.org/JobPosting already permits both. Providers MUST NOT reduce a multi-location role to one of its locations — that asserts a restriction the employer never stated. Omit the field only when no location is known.",
+      "oneOf": [
+        { "$ref": "#/$defs/Place" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Place" },
+          "minItems": 1
         }
-      }
+      ]
     },
     "baseSalary": {
       "type": "object",
@@ -164,12 +163,67 @@
       "enum": ["on_site", "hybrid", "remote", "flexible"],
       "description": "Remote work policy for this role."
     },
+    "eligibility": {
+      "type": "object",
+      "description": "Hard eligibility gates: conditions that decide whether an application can succeed at all. Every gate is a closed enum that includes a value for 'the posting did not say'. An absent gate means exactly that value — agents MUST NOT read absence as a negative. Agents MUST ignore enum members they do not recognise rather than rejecting the posting. See spec § Eligibility Gates.",
+      "properties": {
+        "visa_sponsorship": {
+          "type": "string",
+          "enum": ["offered", "not_offered", "unspecified"],
+          "description": "Whether the employer will sponsor a work visa for this role."
+        },
+        "relocation": {
+          "type": "string",
+          "enum": ["offered", "not_offered", "required", "unspecified"],
+          "description": "Whether the employer supports relocation. `required` means the role cannot be performed without relocating — a constraint on the candidate, not an offer to them."
+        },
+        "security_clearance": {
+          "type": "string",
+          "enum": ["required", "not_required", "unspecified"],
+          "description": "Whether the role requires a government security clearance."
+        }
+      }
+    },
     "agent_notes": {
       "type": "string",
       "description": "Free-text notes intended for agent consumption (e.g., recruiter info, timeline hints)."
+    },
+    "visibility": {
+      "type": "object",
+      "description": "Which callers may see this job in search_jobs results. Absent means public. Evaluated server-side against a verified agent_id. See spec § Agent-Scoped Visibility.",
+      "properties": {
+        "tier": {
+          "type": "string",
+          "enum": ["public", "restricted", "private"],
+          "default": "public",
+          "description": "public: returned to all callers. restricted: returned only to a verified agent_id listed in audience. private: as restricted, and the caller must also hold the provider-granted restricted_feed scope; existence MUST NOT be disclosed to unauthorized callers."
+        },
+        "audience": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "agent_ids permitted to see the job when tier is restricted or private. Matched server-side only, against the verified identity."
+        }
+      }
     }
   },
   "$defs": {
+    "Place": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string",
+          "const": "Place"
+        },
+        "address": {
+          "type": "object",
+          "properties": {
+            "addressLocality": { "type": "string" },
+            "addressRegion": { "type": "string" },
+            "addressCountry": { "type": "string" }
+          }
+        }
+      }
+    },
     "ApplyPath": {
       "type": "object",
       "required": ["type", "supports_agent_submission"],
