@@ -1,0 +1,77 @@
+{
+  "projectName": "ojcp",
+  "projectOwner": "ojcp-org",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 80,
+  "commit": false,
+  "commitConvention": "none",
+  "contributorsPerLine": 7,
+  "linkToUsage": false,
+  "contributors": [
+    {
+      "login": "fraywing",
+      "name": "Austin Anderson",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1855967?v=4",
+      "profile": "https://www.linkedin.com/in/austinanderson1/",
+      "contributions": [
+        "doc",
+        "ideas",
+        "maintenance",
+        "review"
+      ]
+    },
+    {
+      "login": "strelov1",
+      "name": "Ilya Strelov",
+      "avatar_url": "https://avatars.githubusercontent.com/u/10761735?v=4",
+      "profile": "https://www.linkedin.com/in/istrelov/",
+      "contributions": [
+        "doc",
+        "ideas"
+      ]
+    },
+    {
+      "login": "Math1987",
+      "name": "Mathieu Colla",
+      "avatar_url": "https://avatars.githubusercontent.com/u/55652304?v=4",
+      "profile": "https://aithos.world/",
+      "contributions": [
+        "doc",
+        "ideas"
+      ]
+    },
+    {
+      "login": "radustoian-em",
+      "name": "Radu Stoian",
+      "avatar_url": "https://avatars.githubusercontent.com/u/255428867?v=4",
+      "profile": "https://radustoian.com/",
+      "contributions": [
+        "doc",
+        "ideas"
+      ]
+    },
+    {
+      "login": "tomchevalier-tink",
+      "name": "Tom Chevalier",
+      "avatar_url": "https://avatars.githubusercontent.com/u/254720046?v=4",
+      "profile": "https://gettink.ai/",
+      "contributions": [
+        "doc",
+        "ideas"
+      ]
+    },
+    {
+      "login": "FoundRoleApp",
+      "name": "FoundRole",
+      "avatar_url": "https://avatars.githubusercontent.com/u/226716525?v=4",
+      "profile": "https://www.foundrole.com/",
+      "contributions": [
+        "platform"
+      ]
+    }
+  ]
+}
