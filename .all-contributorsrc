@@ -72,6 +72,16 @@
       "contributions": [
         "platform"
       ]
+    },
+    {
+      "login": "lounerios",
+      "name": "lounerios",
+      "avatar_url": "https://avatars.githubusercontent.com/u/13406437?v=4",
+      "profile": "https://www.linkedin.com/in/lucas-simopoulos-4358615/",
+      "contributions": [
+        "review"
+      ]
     }
-  ]
+  ],
+  "commitType": "docs"
 }
