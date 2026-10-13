@@ -284,6 +284,9 @@ Thanks to everyone who has shaped OJCP: spec text, RFCs, implementations and rev
       <td align="center" valign="top" width="14.28%"><a href="https://www.foundrole.com/"><img src="https://avatars.githubusercontent.com/u/226716525?v=4?s=80" width="80px;" alt="FoundRole"/><br /><sub><b>FoundRole</b></sub></a><br /><a href="#platform-FoundRoleApp" title="Packaging/porting to new platform">📦</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/aknolan"><img src="https://avatars.githubusercontent.com/u/40182442?v=4?s=80" width="80px;" alt="Andrew K Nolan"/><br /><sub><b>Andrew K Nolan</b></sub></a><br /><a href="https://github.com/ojcp-org/ojcp/issues?q=author%3Aaknolan" title="Bug reports">🐛</a> <a href="#ideas-aknolan" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/ojcp-org/ojcp/pulls?q=is%3Apr+reviewed-by%3Aaknolan" title="Reviewed Pull Requests">👀</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/recruiterguy"><img src="https://avatars.githubusercontent.com/u/58442737?v=4?s=80" width="80px;" alt="recruiterguy"/><br /><sub><b>recruiterguy</b></sub></a><br /><a href="#ideas-recruiterguy" title="Ideas, Planning, & Feedback">🤔</a></td>
+    </tr>
   </tbody>
 </table>
 
