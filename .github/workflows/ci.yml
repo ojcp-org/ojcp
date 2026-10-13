@@ -98,6 +98,11 @@ jobs:
             bikeshed spec "$RUNNER_TEMP/ojcp-$version/spec/ojcp-v0.1.bs" "_site/$version/index.html"
             git worktree remove --force "$RUNNER_TEMP/ojcp-$version"
           done
+          # Bikeshed has no favicon setting: publish the OJCP icons and link
+          # them from every page's <head> (search engines read the homepage's).
+          cp content/logos/favicon.ico content/logos/icon.svg _site/
+          find _site -name index.html -exec sed -i '0,/<head>/s##<head>\n  <link rel="icon" href="/favicon.ico" sizes="48x48" type="image/x-icon">\n  <link rel="icon" href="/icon.svg" type="image/svg+xml">#' {} +
+          grep -L 'rel="icon"' $(find _site -name index.html) | { ! grep .; }
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
