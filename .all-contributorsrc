@@ -72,6 +72,18 @@
       "contributions": [
         "platform"
       ]
+    },
+    {
+      "login": "aknolan",
+      "name": "Andrew K Nolan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/40182442?v=4",
+      "profile": "https://github.com/aknolan",
+      "contributions": [
+        "bug",
+        "ideas",
+        "review"
+      ]
     }
-  ]
+  ],
+  "commitType": "docs"
 }
