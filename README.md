@@ -266,6 +266,31 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md) for the change process, DCO sign-o
 
 Discuss: [GitHub Discussions](https://github.com/ojcp-org/ojcp/discussions) · `ojcp-discuss@recruitics.com`
 
+### Contributors
+
+Thanks to everyone who has shaped OJCP: spec text, RFCs, implementations and review. To credit someone, comment `@all-contributors please add @<username> for <contributions>` on any issue or pull request ([contribution types](https://allcontributors.org/docs/en/emoji-key)).
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://www.linkedin.com/in/austinanderson1/"><img src="https://avatars.githubusercontent.com/u/1855967?v=4?s=80" width="80px;" alt="Austin Anderson"/><br /><sub><b>Austin Anderson</b></sub></a><br /><a href="https://github.com/ojcp-org/ojcp/commits?author=fraywing" title="Documentation">📖</a> <a href="#ideas-fraywing" title="Ideas, Planning, & Feedback">🤔</a> <a href="#maintenance-fraywing" title="Maintenance">🚧</a> <a href="https://github.com/ojcp-org/ojcp/pulls?q=is%3Apr+reviewed-by%3Afraywing" title="Reviewed Pull Requests">👀</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://www.linkedin.com/in/istrelov/"><img src="https://avatars.githubusercontent.com/u/10761735?v=4?s=80" width="80px;" alt="Ilya Strelov"/><br /><sub><b>Ilya Strelov</b></sub></a><br /><a href="https://github.com/ojcp-org/ojcp/commits?author=strelov1" title="Documentation">📖</a> <a href="#ideas-strelov1" title="Ideas, Planning, & Feedback">🤔</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://aithos.world/"><img src="https://avatars.githubusercontent.com/u/55652304?v=4?s=80" width="80px;" alt="Mathieu Colla"/><br /><sub><b>Mathieu Colla</b></sub></a><br /><a href="https://github.com/ojcp-org/ojcp/commits?author=Math1987" title="Documentation">📖</a> <a href="#ideas-Math1987" title="Ideas, Planning, & Feedback">🤔</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://radustoian.com/"><img src="https://avatars.githubusercontent.com/u/255428867?v=4?s=80" width="80px;" alt="Radu Stoian"/><br /><sub><b>Radu Stoian</b></sub></a><br /><a href="https://github.com/ojcp-org/ojcp/commits?author=radustoian-em" title="Documentation">📖</a> <a href="#ideas-radustoian-em" title="Ideas, Planning, & Feedback">🤔</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://gettink.ai/"><img src="https://avatars.githubusercontent.com/u/254720046?v=4?s=80" width="80px;" alt="Tom Chevalier"/><br /><sub><b>Tom Chevalier</b></sub></a><br /><a href="https://github.com/ojcp-org/ojcp/commits?author=tomchevalier-tink" title="Documentation">📖</a> <a href="#ideas-tomchevalier-tink" title="Ideas, Planning, & Feedback">🤔</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://www.foundrole.com/"><img src="https://avatars.githubusercontent.com/u/226716525?v=4?s=80" width="80px;" alt="FoundRole"/><br /><sub><b>FoundRole</b></sub></a><br /><a href="#platform-FoundRoleApp" title="Packaging/porting to new platform">📦</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
 ---
 
 ## License
