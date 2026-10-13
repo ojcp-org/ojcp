@@ -83,6 +83,15 @@
         "ideas",
         "review"
       ]
+    },
+    {
+      "login": "recruiterguy",
+      "name": "recruiterguy",
+      "avatar_url": "https://avatars.githubusercontent.com/u/58442737?v=4",
+      "profile": "https://github.com/recruiterguy",
+      "contributions": [
+        "ideas"
+      ]
     }
   ],
   "commitType": "docs"
