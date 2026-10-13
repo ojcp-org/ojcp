@@ -25,13 +25,25 @@
       ]
     },
     {
+      "login": "aknolan",
+      "name": "Andrew K Nolan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/40182442?v=4",
+      "profile": "https://github.com/aknolan",
+      "contributions": [
+        "bug",
+        "ideas",
+        "review"
+      ]
+    },
+    {
       "login": "strelov1",
       "name": "Ilya Strelov",
       "avatar_url": "https://avatars.githubusercontent.com/u/10761735?v=4",
       "profile": "https://www.linkedin.com/in/istrelov/",
       "contributions": [
         "doc",
-        "ideas"
+        "ideas",
+        "research"
       ]
     },
     {
@@ -70,18 +82,36 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/226716525?v=4",
       "profile": "https://www.foundrole.com/",
       "contributions": [
-        "platform"
+        "platform",
+        "bug",
+        "ideas"
       ]
     },
     {
-      "login": "aknolan",
-      "name": "Andrew K Nolan",
-      "avatar_url": "https://avatars.githubusercontent.com/u/40182442?v=4",
-      "profile": "https://github.com/aknolan",
+      "login": "lounerios",
+      "name": "Lucas Simopoulos",
+      "avatar_url": "https://avatars.githubusercontent.com/u/13406437?v=4",
+      "profile": "https://www.linkedin.com/in/lucas-simopoulos-4358615/",
       "contributions": [
-        "bug",
-        "ideas",
         "review"
+      ]
+    },
+    {
+      "login": "recruiterguy",
+      "name": "recruiterguy",
+      "avatar_url": "https://avatars.githubusercontent.com/u/58442737?v=4",
+      "profile": "https://github.com/recruiterguy",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "reqspace",
+      "name": "reqspace.ai",
+      "avatar_url": "https://avatars.githubusercontent.com/u/214150285?v=4",
+      "profile": "https://github.com/reqspace",
+      "contributions": [
+        "doc"
       ]
     }
   ],
