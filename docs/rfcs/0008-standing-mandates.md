@@ -509,6 +509,7 @@ New `USER_MANDATE_FIXTURES` classes. On the wire, every failure is `user_mandate
 - **Per-user agent keys.** They are linkable across providers. Pool keys plus candidate binding give the same protection against cross-user misuse without that.
 - **OpenID4VP `transaction_data_hashes` for the per-application binding.** In OpenID4VP it means a transaction the user approved. A separate claim avoids implying that.
 - **Delegation tokens (macaroons, UCAN, Biscuit).** They would be a new format and verification algorithm for providers.
+- **Reusing the mandates of AP2.** The [Agent Payments Protocol](https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol) solves the same problem for purchases: its Intent Mandate lets a user approve conditions in advance so an agent can act later without them present, as a standing mandate does here. Its mandates describe carts, prices and payment, while hiring needs a candidate binding, a per-employer cap the receiving side enforces, occupation-code scope, a salary floor the provider never sees, and binding actions no mandate can sign. So this RFC defines its own claims, but on the same primitives where they overlap, P-256 signatures and credentials bound to the agent's key, so one agent platform can hold both kinds of mandate in one wallet.
 - **An OpenID4VP request round trip per presentation.** MCP has no channel for it, and it adds nothing over the KB-JWT bound to the signed request.
 - **Cross-provider counting of the total.** That is cross-employer surveillance.
 - **BBS or other zero-knowledge presentations.** They give better unlinkability, but they are not yet standardized for SD-JWT VC and not in HAIP. Out of scope.
@@ -527,6 +528,7 @@ New `USER_MANDATE_FIXTURES` classes. On the wire, every failure is `user_mandate
 3. **Taxonomy updates.** When O*NET-SOC is revised, should mandates be re-issued, or should a published crosswalk apply?
 4. **Status latency.** Is up to about two hours from revocation to enforcement acceptable, or should the epoch shrink at the cost of more observable updates?
 5. **Count window.** Is a trailing window equal to the maximum lifetime the right horizon for `per_employer`, or should employers be able to set a longer one?
+6. **Alignment with AP2.** Should a later version align claim names and key-binding details with AP2's mandates, so that a single holder implementation serves both purchases and applications?
 
 ## Interests
 
