@@ -88,6 +88,8 @@ See [GOVERNANCE.md](GOVERNANCE.md) for the seat table, term rules, and how chang
 /diagrams                   # Mermaid diagram sources (*.mmd)
 /content
   images/                   # Rendered diagram PNGs
+  logos/                    # OJCP wordmark (ojcp-light/dark), icon, favicon,
+                            #   GitHub avatar; SVG with PNG exports
   logos/members/            # Steering-member logos
 /docs
   proposal.md               # Original proposal
