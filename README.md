@@ -95,6 +95,8 @@ See [GOVERNANCE.md](GOVERNANCE.md) for the seat table, term rules, and how chang
   proposal.md               # Original proposal
   rfcs/                     # Design documents behind each feature
   decisions/                # Architecture Decision Records (ADRs)
+/skills
+  ojcp-job-search/          # Agent skill: search every registry job source for a candidate
 GOVERNANCE.md               # Governance charter, steering committee, IP policy
 CONTRIBUTING.md             # How to contribute, change process, DCO, licensing
 CODE_OF_CONDUCT.md          # Contributor Covenant
@@ -169,6 +171,10 @@ See the WebMCP integration section of the [spec](https://spec.ojcp.dev/) for the
 ### For agent developers
 
 Discover providers from the [registry](https://github.com/ojcp-org/registry) — a Git-backed directory with one reviewed JSON entry per provider. Each entry points at a provider's `/.well-known/ojcp.json`; from there, probe the manifest and call the standard OJCP tools over MCP. To be listed, open a PR adding your entry (domain control is proven per the registry README).
+
+### For job seekers
+
+Give your AI assistant the [`ojcp-job-search` skill](skills/ojcp-job-search/SKILL.md). It searches every job source in the [registry](https://ojcp.dev/registry) at once and returns current openings with apply links. Searching sends only your search words and location, nothing about you.
 
 ---
 

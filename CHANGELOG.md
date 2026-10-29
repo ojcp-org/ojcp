@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`intern`, `staff` and `principal` added to `experienceLevel`'s standard values** — the field was already open, but a level outside the documented set is unreadable to any agent that does not know the provider. `intern` is an internship rather than a junior role; `staff` and `principal` are senior individual-contributor levels that `senior` hides. Updated in `schemas/job-posting.json`, `schemas/tools/search-jobs-input.json`, and the JobPosting and `search_jobs` sections of `spec/ojcp-v0.1.bs`. Reported with distribution figures in [#19](https://github.com/ojcp-org/ojcp/issues/19).
+- **`ojcp-job-search` agent skill** (`skills/ojcp-job-search/`) — a skill a job seeker gives their AI assistant. It reads the live registry, searches every keyless source with `search_jobs`, merges the results, and fetches `get_job_detail` on request. Sources tagged `reference`, `test` or `sandbox` are skipped. The helper script needs only Node 18 and sends no candidate data.
 
 ### Changed
 
