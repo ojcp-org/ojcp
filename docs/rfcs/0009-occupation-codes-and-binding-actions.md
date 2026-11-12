@@ -7,7 +7,7 @@ labels: rfc
 ## RFC: Occupation codes and binding actions — say what a job is, and what an application would sign
 
 - **Author:** Austin Anderson, Recruitics
-- **Status:** Draft
+- **Status:** Accepted
 - **Created:** 2026-10-12
 - **Resolves:** —
 - **Related:** RFC 0003 (action-bound user mandates), RFC 0008 (standing mandates), RFC 0012 (signed job postings)
@@ -438,10 +438,10 @@ Recruitics, the author's employer, operates an OJCP provider and a job-distribut
 
 ## For maintainers — comment period and resolution
 
-Comment period opens:
+Comment period opens: 2026-10-12
 
-Comment period closes:
+Comment period closes: 2026-11-11 (30 days)
 
-Resolution:
+Resolution: Accepted (2026-11-12, after the close of the comment period; no blocking comments).
 
-Decision record:
+Decision record: [docs/decisions/0009-occupation-codes-and-binding-actions.md](../decisions/0009-occupation-codes-and-binding-actions.md)
