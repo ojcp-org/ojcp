@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`intern`, `staff` and `principal` added to `experienceLevel`'s standard values** — the field was already open, but a level outside the documented set is unreadable to any agent that does not know the provider. `intern` is an internship rather than a junior role; `staff` and `principal` are senior individual-contributor levels that `senior` hides. Updated in `schemas/job-posting.json`, `schemas/tools/search-jobs-input.json`, and the JobPosting and `search_jobs` sections of `spec/ojcp-v0.1.bs`. Reported with distribution figures in [#19](https://github.com/ojcp-org/ojcp/issues/19).
 - **`ojcp-job-search` agent skill** (`skills/ojcp-job-search/`) — a skill a job seeker gives their AI assistant. It reads the live registry, searches every keyless source with `search_jobs`, merges the results, and fetches `get_job_detail` on request. Sources tagged `reference`, `test` or `sandbox` are skipped. The helper script needs only Node 18 and sends no candidate data.
+- **RFCs 0008–0014 accepted** at the close of their 30-day comment period (2026-10-12 to 2026-11-11), with no blocking comments; decisions recorded in `docs/decisions/0008`–`0014`. Normative spec and schema implementation follows in separate PRs, targeting OJCP 0.4.
+  - Core: **RFC 0009** occupation codes and binding actions ([#46](https://github.com/ojcp-org/ojcp/pull/46)).
+  - Trust extension: **RFC 0010** decentralized provider trust ([#41](https://github.com/ojcp-org/ojcp/pull/41)), **RFC 0011** key transparency log ([#42](https://github.com/ojcp-org/ojcp/pull/42)), **RFC 0012** signed job postings ([#43](https://github.com/ojcp-org/ojcp/pull/43)).
+  - Mandates extension: **RFC 0008** standing mandates ([#40](https://github.com/ojcp-org/ojcp/pull/40)). Per-employer refusal of standing mandates on shared providers goes to a follow-up RFC.
+  - Candidate Verification extension: **RFC 0013** wallet credential presentation ([#44](https://github.com/ojcp-org/ojcp/pull/44)), **RFC 0014** hiring credentials and issuer profile ([#45](https://github.com/ojcp-org/ojcp/pull/45)).
 
 ### Changed
 
