@@ -1,0 +1,231 @@
+<pre class='metadata'>
+Title: OJCP Mandates
+Shortname: ojcp-mandates
+Level: 1
+Status: LD
+URL: https://spec.ojcp.dev/mandates/
+Editor: Austin Anderson, Recruitics https://www.recruitics.com/, austin@recruitics.com
+Abstract: OJCP Mandates is an optional companion specification to the Open Job Context Protocol. It defines user mandates: credentials by which a person authorizes an agent's signing key to act for them, and how providers verify and consume them.
+Markup Shorthands: markdown yes
+Date: 2026-11-12
+Version History: https://github.com/ojcp-org/ojcp/commits/main
+Repository: ojcp-org/ojcp
+Boilerplate: conformance no, copyright no
+</pre>
+
+<pre class='metadata'>
+Text Macro: VERSION 0.3
+</pre>
+
+<pre class='link-defaults'>
+spec:dom; type:dfn; for:/; text:document
+</pre>
+
+<pre class="biblio">
+{
+  "SD-JWT-VC": {
+    "title": "SD-JWT-based Verifiable Digital Credentials (SD-JWT VC)",
+    "href": "https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/",
+    "publisher": "IETF",
+    "status": "Internet-Draft"
+  }
+}
+</pre>
+
+<pre class="copyright">
+Copyright &copy; 2026 The OJCP Authors. Licensed under the <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>. See <a href="https://github.com/ojcp-org/ojcp/blob/main/GOVERNANCE.md">GOVERNANCE.md</a> for the project's governance model.
+</pre>
+
+<pre class="anchors">
+spec: ojcp; type: dfn; urlPrefix: ../
+    text: Agent Declaration; url: #agent-declaration
+    text: Job Manifest; url: #job-manifest
+    text: Verification Proof; url: #verification-proof
+</pre>
+
+# Introduction # {#intro}
+
+This document extends [OJCP](../), which defines the tools, the [=Agent Declaration=] that carries a mandate, and agent identity. Implementing it is OPTIONAL: it applies only when a provider requires a user mandate.
+
+# User Mandates # {#user-mandates}
+
+A platform signature ([OJCP: Verification](../#agent-verification)) proves which software made a request. It does not prove that a person authorized that software to take a particular action. This section defines the minimum interoperable security profile for `AgentDeclaration.user_mandate`: a credential that binds a user's authorization to one OJCP action and to the agent signing key that may exercise it.
+
+User mandates are OPTIONAL. This section applies only when a provider requires a user mandate for a request. A provider that requires none, and an agent that sends none, behave exactly as elsewhere in this specification. This section fixes the security boundary every user mandate MUST satisfy; the credential's media type and exact claim profile, a registry of [=action statement=] types, and manifest signalling are not defined by this version, and any credential that meets this profile conforms.
+
+## Definitions ## {#mandate-definitions}
+
+: <dfn>User mandate</dfn>
+:: A credential, carried in `AgentDeclaration.user_mandate`, by which a user authorizes one agent signing key to perform one OJCP action under the constraints it discloses.
+
+: <dfn>Action statement</dfn>
+:: The canonical `ojcp_action` object describing the authorized action ([[#mandate-action]]).
+
+: <dfn>Mandate-admission policy</dfn>
+:: A provider's policy that determines which mandate issuers or user-rooted keys are admissible for an action ([[#mandate-admission]]).
+
+## Three Claims, Three Decisions ## {#mandate-claims-separation}
+
+Providers MUST treat the following claims independently:
+
+<table class="data">
+  <thead>
+    <tr><th>Claim</th><th>Typical evidence</th><th>What it proves</th><th>What it does not prove</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Platform / agent identity</td><td>[[RFC9421]] signature and `Signature-Agent` ([OJCP: Agent Identity](../#agent-identity))</td><td>The verified agent platform made this request.</td><td>A person authorized the request.</td></tr>
+    <tr><td>Candidate identity</td><td>[=Verification Proof=] ([OJCP Candidate Verification](../verification/)) or provider account flow</td><td>A verifier or provider made the stated identity claim.</td><td>That an agent may submit a particular application.</td></tr>
+    <tr><td>User authorization</td><td>Valid `user_mandate` admitted by the provider's [=mandate-admission policy=]</td><td>A user-authorized key authorized this action under the disclosed constraints.</td><td>The candidate's civil identity, unless a separate identity flow establishes it.</td></tr>
+  </tbody>
+</table>
+
+A provider MUST NOT promote a successful result in one row to a successful result in another. A [=Verification Proof=] is not a submission mandate, and a platform-signed `acting_on_behalf_of` value is not delegated user authority.
+
+## Mandate Admission ## {#mandate-admission}
+
+Cryptographic validity is necessary but not sufficient. A provider that requires a [=user mandate=] MUST have a [=mandate-admission policy=] that determines which mandate issuers or user-rooted keys are admissible for the relevant action. The policy sits outside the credential: an issuer cannot make itself authorized merely by issuing a valid credential, and a credential signed only by the agent platform's key is never user authority.
+
+Providers MAY admit a user-controlled key, a provider account-bound credential, or an independent identity-provider credential. A provider that must establish that the authorizing user is the named applicant MUST perform that binding through its own account, verified email, or [OJCP Candidate Verification](../verification/) process. A newly generated public key alone proves control of the key, not a person's legal identity.
+
+## Mandate Profile ## {#mandate-profile}
+
+`user_mandate` SHOULD be an SD-JWT Verifiable Credential ([[SD-JWT-VC]], [[RFC9901]]) in compact serialization, presented with a key-binding proof by the agent's signing key. A mandate accepted for an OJCP action MUST convey, directly or by selectively-disclosed claims:
+
+- `iss` and an issuer or user-root public-key reference;
+- `cnf.jkt` ([[RFC7800]], [[RFC9449]]), the [[RFC7638]] thumbprint of the *agent signing key* authorized to exercise the mandate — the same thumbprint the agent's request signature carries as `keyid` ([OJCP: Signing Profile](../#agent-signing-profile));
+- `aud`, the origin of the OJCP resource server that will consume the mandate. For a multi-tenant ATS this identifies the ATS endpoint, not the employer's public website ([[#mandate-multi-tenant]]);
+- `iat`, `nbf` when used, `exp`, and a unique `jti`;
+- an OJCP version identifier;
+- the [=action statement=] ([[#mandate-action]]); and
+- a revocation or status mechanism, unless the mandate has a short, provider-defined maximum lifetime and is single-use.
+
+The credential MUST NOT carry `acting_on_behalf_of` or other direct user identifiers unless the provider's matched action actually needs them. A provider MUST NOT require disclosure of a stable user identifier merely to validate delegation.
+
+<div class="example">
+The decoded issuer-signed claims of a single-use mandate for a `submit_application` call. The mandate carries the [=action statement=] by digest; it has no status claim because it is single-use and valid for ten minutes. Values are illustrative.
+
+```json
+{
+  "iss": "did:jwk:eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6Ik...",
+  "vct": "urn:example:ojcp-user-mandate",
+  "aud": "https://careers.acme.com",
+  "iat": 1773844800,
+  "nbf": 1773844800,
+  "exp": 1773845400,
+  "jti": "mnd_RGBLQJ-l7qj9DiNH",
+  "cnf": { "jkt": "tKwHslziExQ7dQgDX2HX8q9EuvAYmS_A3SKfjNHpdX8" },
+  "ojcp_version": "0.1",
+  "ojcp_action": "sha256:f-iFWllBWhQTjicNqPPPyN25DsN5rkUQThmL2e2VahM"
+}
+```
+</div>
+
+## Action Statement ## {#mandate-action}
+
+A mandate binds a stable representation of the action, not an HTTP or JSON-RPC payload. The [=action statement=] is a JSON object, `ojcp_action`. A mandate conveys it either as the object itself or, when embedded by digest, as the string `sha256:` followed by the base64url encoding (without padding) of the SHA-256 hash of its JCS serialization ([[!RFC8785]]).
+
+<table class="data">
+  <thead>
+    <tr><th>Field</th><th>Requirement</th><th>Value</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`ojcp_version`</td><td>OPTIONAL</td><td>The OJCP version, when the mandate carries its version identifier here.</td></tr>
+    <tr><td>`resource_server`</td><td>REQUIRED</td><td>The origin of the OJCP endpoint that consumes the mandate; equal to `aud`.</td></tr>
+    <tr><td>`employer`</td><td>REQUIRED when the resource server serves more than one employer</td><td>The employer context of the job ([[#mandate-multi-tenant]]).</td></tr>
+    <tr><td>`tool`</td><td>REQUIRED</td><td>The OJCP tool name, e.g. `submit_application`.</td></tr>
+    <tr><td>`job_id`</td><td>REQUIRED</td><td>The job's `ojcp_id`.</td></tr>
+    <tr><td>`application_id`</td><td>REQUIRED for `submit_application`</td><td>The `application_id` returned by `begin_application`.</td></tr>
+    <tr><td>`agent_id`</td><td>REQUIRED</td><td>The verified `agent_id` ([OJCP: Verification](../#agent-verification)).</td></tr>
+    <tr><td>`agent_key_thumbprint`</td><td>REQUIRED</td><td>The [[RFC7638]] thumbprint of the agent signing key; equal to `cnf.jkt`.</td></tr>
+    <tr><td>`candidate_data_digest`</td><td>REQUIRED for `submit_application`</td><td>A digest of the semantically material candidate data, defined below.</td></tr>
+    <tr><td>`mandate_nonce`</td><td>REQUIRED for `submit_application`</td><td>The single-use nonce the provider returned with the application session ([[#mandate-nonce]]).</td></tr>
+  </tbody>
+</table>
+
+`candidate_data_digest` covers the semantically material candidate data sent with the request, excluding transport metadata and the mandate itself. It prevents substituting a different resume reference, screening answer, contact address, or profile after consent. Its value is `sha256:` followed by the base64url encoding (without padding) of the SHA-256 hash of the JCS serialization of an object whose members are the request's `application_data` and `candidate_context`, exactly as sent; a member absent from the request is omitted.
+
+Providers and agents MUST ignore action-statement fields they do not recognize. A provider MUST reject a mandate when a field required for the requested tool is absent or does not match the action statement the provider independently reconstructs.
+
+<div class="example">
+The [=action statement=] whose digest the mandate above carries:
+
+```json
+{
+  "ojcp_version": "0.1",
+  "resource_server": "https://careers.acme.com",
+  "employer": { "ojcp_employer_id": "acme-corp" },
+  "tool": "submit_application",
+  "job_id": "careers.acme.com:analyst-2026-001",
+  "application_id": "app_abc123",
+  "agent_id": "ai.northstar.assistant",
+  "agent_key_thumbprint": "tKwHslziExQ7dQgDX2HX8q9EuvAYmS_A3SKfjNHpdX8",
+  "candidate_data_digest": "sha256:l8Kt_6K5fFTzhjg_iIYDcXjskULviQZ5h7QClTNOeqo",
+  "mandate_nonce": "mn_xBVlesPAiuvWDyyxUDEDzDTG"
+}
+```
+</div>
+
+### Multi-Tenant Resource Servers ### {#mandate-multi-tenant}
+
+An ATS that hosts application flows for many employers separates two security properties: the recipient of the mandate, and the employer the application is made to.
+
+- `aud` and `resource_server` identify the OJCP endpoint that consumes the mandate, such as an ATS tenant or a shared ATS API origin. They prevent a credential issued for one resource server from being presented to another.
+- The [=action statement=] MUST also bind the employer context of the job. A multi-tenant provider MUST include `employer.ojcp_employer_id` from the JobPosting ([OJCP: JobPosting](../#schema-job-posting)) when it is available. It MAY also include the posting's `official_job_url` when the provider has verified its association with the job. An unverified URL alone is not an authorization boundary.
+
+<div class="example">
+```json
+{
+  "resource_server": "https://apply.example-ats.com",
+  "employer": { "ojcp_employer_id": "acme" },
+  "tool": "submit_application",
+  "job_id": "apply.example-ats.com:1234",
+  "application_id": "app_7f3a...",
+  "agent_id": "ai.example.agent",
+  "agent_key_thumbprint": "base64url-rfc7638-thumbprint",
+  "candidate_data_digest": "sha256:base64url(JCS(candidate fields and answers))",
+  "mandate_nonce": "provider-issued-single-use-nonce"
+}
+```
+</div>
+
+The provider MUST reconstruct both bindings from its own session state, and MUST reject a mandate that matches its endpoint but names a different employer, tenant, job, or official-job anchor. A mandate for one employer therefore cannot be reused for another employer on the same ATS.
+
+### Mandate Nonce ### {#mandate-nonce}
+
+For `begin_application`, a provider MAY accept a mandate without `application_id`. When it does, the [=action statement=] MUST still bind the resource server, the employer when multi-tenant, the job, the agent signing key, the requested `consent_scope`, and any candidate data to be prefetched (by `candidate_data_digest` over the request's `candidate_context`).
+
+Before a mandate-bound `submit_application`, the provider MUST return an unpredictable, single-use `mandate_nonce` with the application session in the `begin_application` response. The agent binds it into the [=action statement=] for `submit_application`. The nonce keeps a low-entropy candidate-data digest from serving alone as a reusable or dictionary-attackable authorization handle.
+
+## Verification ## {#mandate-verification}
+
+A mandate binds to the agent signing key of a verified request, so a provider MUST NOT evaluate a `user_mandate` on a request whose agent identity has not been verified per [OJCP: Verification](../#agent-verification). Such a request fails with the applicable agent-signature error code.
+
+For a context that requires a [=user mandate=], a provider MUST, in order:
+
+1. Verify the credential signature and the holder proof required by its selected SD-JWT VC profile.
+2. Apply its [=mandate-admission policy=] ([[#mandate-admission]]); cryptographic validity alone is not sufficient.
+3. Verify `aud`, the time bounds (`nbf` when present, and `exp`), the OJCP version, and that `cnf.jkt` equals the thumbprint of the currently verified agent signing key.
+4. Reconstruct the [=action statement=] from the received request and the provider's session state, then verify every field required for the requested tool, or the action digest.
+5. Enforce the mandate's revocation or status rule before executing the action. A mandate with no status mechanism is acceptable only within the provider's maximum lifetime for single-use mandates.
+6. Reject a mandate whose `jti` or `mandate_nonce` has already been consumed. For a successful terminal submission, atomically record both as consumed. A retry after an indeterminate network failure MAY use the provider's ordinary idempotency mechanism, but MUST NOT create a second application.
+7. Bind the acceptance decision to the application session, and invalidate it when the user revokes consent or the mandate expires.
+
+Failure at any step MUST fail closed, and MUST NOT fall back to treating `acting_on_behalf_of`, a platform signature, or a [=Verification Proof=] as authorization.
+
+### Key Binding and Rotation ### {#mandate-key-rotation}
+
+A mandate bound through `cnf.jkt` authorizes that exact agent signing key, not every key the agent platform may publish later. An agent's key directory ([OJCP: Key Discovery](../#agent-key-discovery)) MUST retain the mandated key until the mandate expires; key rotation does not transfer a mandate to a new key. If the old key cannot remain available for verification, the user mandate MUST be reissued for the new key. This keeps the mandate's lifetime within the key-retention and rotation window, and avoids silently widening the user's authorization.
+
+## Signalling and Errors ## {#mandate-errors}
+
+A provider that requires a [=user mandate=] MUST document the requirement in its tool descriptions. This version defines no [=Job Manifest=] field for mandate requirements.
+
+When a context requires a [=user mandate=] and none is presented, or the presented mandate fails any step of [[#mandate-verification]], the provider MUST return the standard error envelope ([OJCP: Error Responses](../#tool-errors)) with `error_code` `user_mandate_required`. One code covers both cases, so the response does not reveal which check failed.
+
+The experimental `USER_MANDATE_FIXTURES` in the [OJCP conformance suite](https://github.com/ojcp-org/conformance) exercise these decisions — a missing or unadmitted mandate, a platform credential or [=Verification Proof=] presented as user authority, agent-key, audience, employer, job and candidate-data mismatches, expiry, revocation, and replay. They distinguish failure classes internally to test each check; those classes are not wire error codes.
+
+## Security and Privacy Considerations ## {#mandate-security}
+
+- **Hashes are not anonymization.** The [=action statement=] binds hashes rather than duplicating candidate data, but a hash of low-entropy data is not safe to disclose on its own. The provider-issued `mandate_nonce`, selective disclosure, short validity, and single use all contribute. Implementations SHOULD NOT log raw mandates, candidate data, or undisclosed SD-JWT claims.
+- **Revocation.** A candidate may withdraw consent while a long-running verification or application session is pending. Once revocation takes effect, the provider MUST stop accepting the mandate and invalidate the associated OJCP session.
+- **Key rotation.** Rotation MUST NOT weaken agent binding. Providers SHOULD cache a mandated key only as long as the directory's rotation and expiry rules allow, and agents MUST publish the old key for at least the full lifetime of every outstanding mandate that references it.
