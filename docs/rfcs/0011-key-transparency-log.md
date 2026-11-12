@@ -7,7 +7,7 @@ labels: rfc
 ## RFC: Key transparency log — a public, tamper-evident history of every employer's signing keys
 
 - **Author:** Austin Anderson, Recruitics
-- **Status:** Draft
+- **Status:** Accepted
 - **Created:** 2026-10-12
 - **Resolves:** —
 - **Related:** RFC 0010 (Decentralized provider trust), RFC 0012 (Signed job postings)
@@ -319,10 +319,10 @@ Recruitics, the author's employer, operates an OJCP provider and a job-distribut
 
 ## For maintainers — comment period and resolution
 
-Comment period opens:
+Comment period opens: 2026-10-12
 
-Comment period closes:
+Comment period closes: 2026-11-11 (30 days)
 
-Resolution:
+Resolution: Accepted (2026-11-12, after the close of the comment period; no blocking comments).
 
-Decision record:
+Decision record: [docs/decisions/0011-key-transparency-log.md](../decisions/0011-key-transparency-log.md)
