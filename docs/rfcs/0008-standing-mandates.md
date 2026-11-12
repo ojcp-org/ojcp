@@ -7,7 +7,7 @@ labels: rfc, security, privacy
 ## RFC: Standing mandates — authorize an agent once, within limits and until a date
 
 - **Author:** Austin Anderson, Recruitics
-- **Status:** Draft
+- **Status:** Accepted
 - **Created:** 2026-10-12
 - **Resolves:** —
 - **Related:** RFC 0001 (verifiable agent identity), RFC 0003 (action-bound user mandates), RFC 0009 (hiring vocabulary), RFC 0010 (decentralized provider trust)
@@ -536,10 +536,10 @@ Recruitics, the author's employer, operates an OJCP provider and a job-distribut
 
 ## For maintainers — comment period and resolution
 
-Comment period opens:
+Comment period opens: 2026-10-12
 
-Comment period closes:
+Comment period closes: 2026-11-11 (30 days)
 
-Resolution:
+Resolution: Accepted (2026-11-12, after the close of the comment period; no blocking comments).
 
-Decision record:
+Decision record: [docs/decisions/0008-standing-mandates.md](../decisions/0008-standing-mandates.md)
