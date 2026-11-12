@@ -7,7 +7,7 @@ labels: rfc
 ## RFC: Signed job postings — let anyone who receives a job second-hand check who published it and that it is unaltered
 
 - **Author:** Austin Anderson, Recruitics
-- **Status:** Draft
+- **Status:** Accepted
 - **Created:** 2026-10-12
 - **Resolves:** —
 - **Related:** RFC 0002 (Official job URL), RFC 0007 (Provider-derived attribution), RFC 0010 (Decentralized provider trust), RFC 0011 (Key transparency log)
@@ -174,3 +174,10 @@ Recruitics operates an OJCP provider and a job-distribution business that earns 
 
 ## For maintainers — comment period and resolution
 
+Comment period opens: 2026-10-12
+
+Comment period closes: 2026-11-11 (30 days)
+
+Resolution: Accepted (2026-11-12, after the close of the comment period; no blocking comments).
+
+Decision record: [docs/decisions/0012-signed-job-postings.md](../decisions/0012-signed-job-postings.md)
