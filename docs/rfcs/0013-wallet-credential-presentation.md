@@ -7,7 +7,7 @@ labels: rfc, security, privacy
 ## RFC: Wallet credential presentation — a person proves a fact from their phone, straight to the employer
 
 - **Author:** Austin Anderson, Recruitics
-- **Status:** Draft
+- **Status:** Accepted
 - **Created:** 2026-10-12
 - **Resolves:** —
 - **Related:** RFC 0003 (Action-bound user mandates), RFC 0005 (Inline identity verification via MCP Apps), RFC 0008 (Standing mandates), RFC 0009 (Occupation codes and binding actions), RFC 0010 (Decentralized provider trust), RFC 0014 (Hiring credentials and issuer profile)
@@ -409,10 +409,10 @@ Recruitics, the author's employer, operates an OJCP provider and a job-distribut
 
 ## For maintainers — comment period and resolution
 
-Comment period opens:
+Comment period opens: 2026-10-12
 
-Comment period closes:
+Comment period closes: 2026-11-11 (30 days)
 
-Resolution:
+Resolution: Accepted (2026-11-12, after the close of the comment period; no blocking comments).
 
-Decision record:
+Decision record: [docs/decisions/0013-wallet-credential-presentation.md](../decisions/0013-wallet-credential-presentation.md)
