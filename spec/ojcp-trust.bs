@@ -1,0 +1,229 @@
+<pre class='metadata'>
+Title: OJCP Trust
+Shortname: ojcp-trust
+Level: 1
+Status: LD
+URL: https://spec.ojcp.dev/trust/
+Editor: Austin Anderson, Recruitics https://www.recruitics.com/, austin@recruitics.com
+Abstract: OJCP Trust is a companion specification to the Open Job Context Protocol. It defines how a provider signs its manifest and publishes its keys, the provider trust tiers agents derive from those signals, and what agents may send to a provider at each tier.
+Markup Shorthands: markdown yes
+Date: 2026-11-12
+Version History: https://github.com/ojcp-org/ojcp/commits/main
+Repository: ojcp-org/ojcp
+Boilerplate: conformance no, copyright no
+</pre>
+
+<pre class='metadata'>
+Text Macro: VERSION 0.3
+</pre>
+
+<pre class='link-defaults'>
+spec:dom; type:dfn; for:/; text:document
+</pre>
+
+<pre class="copyright">
+Copyright &copy; 2026 The OJCP Authors. Licensed under the <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>. See <a href="https://github.com/ojcp-org/ojcp/blob/main/GOVERNANCE.md">GOVERNANCE.md</a> for the project's governance model.
+</pre>
+
+<pre class="anchors">
+spec: ojcp; type: dfn; urlPrefix: ../
+    text: Candidate Context; url: #candidate-context
+</pre>
+
+# Introduction # {#intro}
+
+This document extends [OJCP](../), which defines the manifest, tools and schemas it refers to. Manifest signing is OPTIONAL for providers. The agent obligations in [[#trust-agent-obligations]] apply to every agent that transmits [=Candidate Context=], whether or not the provider signs.
+
+# Provider Trust # {#provider-trust}
+
+Any site can publish an OJCP manifest. Without a trust mechanism, agents have no way to distinguish a legitimate employer from a malicious actor harvesting candidate PII. OJCP defines a layered trust model so agents can verify "the manifest is authentic and authorized by the domain owner" before transmitting candidate data.
+
+The model uses existing primitives — HTTPS, JWS, JWK Sets — rather than introducing new infrastructure. Manifest signing is OPTIONAL for v0.1; unsigned providers remain interoperable but cannot reach the `verified` or `audited` registry tiers and SHOULD be treated with reduced trust by agents handling PII.
+
+## Threat Model ## {#trust-threats}
+
+OJCP-aware agents face three primary trust risks when interacting with providers:
+
+1. **Imposter providers.** A malicious actor stands up `careers.fake-employer.com` with an OJCP manifest declaring fake jobs. Agents submit applications containing candidate PII (resume URL, email, work authorization) which the actor harvests for phishing, identity fraud, or sale.
+2. **Manifest tampering.** A legitimate provider's manifest is intercepted or compromised — the served manifest is modified to redirect application submissions to an attacker-controlled endpoint.
+3. **Stale or revoked credentials.** A formerly-legitimate provider's signing key is compromised; agents that cached the manifest continue to trust it after the key has been rotated.
+
+Provider trust addresses all three. It does not address agent-side threats (a bad agent submitting spam to a legitimate provider) — those are addressed by [OJCP: Agent Identity](../#agent-identity), [OJCP Mandates](../mandates/) and [OJCP: Employer Controls](../#security-employer).
+
+## Manifest Signing ## {#trust-manifest-signing}
+
+A provider MAY sign its manifest by including a `signature` field. The signature is a JSON Web Signature ([[RFC7515]]) computed over the manifest content with the `signature` field excluded.
+
+The `signature` object MUST include:
+
+- `alg` — Signing algorithm. `ES256` (ECDSA with P-256 and SHA-256) is RECOMMENDED. `RS256`, `ES384`, and `RS384` are acceptable.
+- `kid` — Key identifier matching a key in the provider's JWK Set ([[#trust-jwks]]).
+- `signed_at` — ISO 8601 timestamp when the signature was created.
+- `expires_at` — ISO 8601 timestamp when the signature expires. RECOMMENDED 24 hours from `signed_at`.
+- `value` — Base64url-encoded signature bytes.
+
+The `signature` object SHOULD include:
+
+- `iss` — The provider domain or identifier this signature attests. Agents MUST verify this matches the domain serving the manifest.
+
+<div class="example">
+A signed manifest:
+
+```json
+{
+  "ojcp_version": "0.3",
+  "provider": { "name": "Acme Corp Careers", "employer_id": "acme-corp" },
+  "tools": ["search_jobs", "get_job_detail", "begin_application", "submit_application", "check_application_status"],
+  "apply_paths": ["provider_hosted", "ats_direct"],
+  "signature": {
+    "alg": "ES256",
+    "kid": "acme-key-2026-q2",
+    "iss": "careers.acme.com",
+    "signed_at": "2026-04-29T12:00:00Z",
+    "expires_at": "2026-04-30T12:00:00Z",
+    "value": "MEUCIQDx2..."
+  }
+}
+```
+</div>
+
+### Canonicalization ### {#trust-canonicalization}
+
+To produce or verify a signature, both parties MUST canonicalize the manifest content identically:
+
+1. Remove the `signature` field from the manifest object.
+2. Serialize the resulting object using JCS (JSON Canonicalization Scheme, [[!RFC8785]]).
+3. Compute the signature over the canonicalized bytes.
+
+Agents MUST use JCS for verification. Providers that produce signatures using other canonicalization schemes will produce signatures agents cannot validate.
+
+## JWK Set Discovery ## {#trust-jwks}
+
+A signing provider MUST publish a JWK Set ([[RFC7517]]) at:
+
+```
+/.well-known/ojcp-keys.json
+```
+
+The JWK Set MUST be served over HTTPS with `Content-Type: application/jwk-set+json`. Each key MUST include `kid`, `kty`, and `alg` fields.
+
+Agents validate signatures by:
+
+1. Fetching the JWK Set from `{provider_origin}/.well-known/ojcp-keys.json`.
+2. Resolving the `kid` from the manifest's `signature` object against the set.
+3. Verifying the `alg` in the signature matches the key's `alg`.
+4. Verifying the signature over the canonicalized manifest content.
+
+Agents SHOULD cache JWK Sets with a TTL of 1 hour. Agents MUST refetch the JWK Set when encountering an unknown `kid`.
+
+### Key Rotation ### {#trust-key-rotation}
+
+Providers SHOULD rotate signing keys periodically (RECOMMENDED: every 90 days). Rotation procedure:
+
+- The provider MUST publish both old and new keys in the JWK Set for an overlap period of at least 24 hours.
+- The provider SHOULD begin signing new manifests with the new key as soon as the new key is published.
+- After the overlap period, the provider MAY remove the old key. Manifests signed with the removed key will no longer validate — this is expected, since they should have expired.
+
+Providers MUST NOT hard-code `kid` values or signing keys in agent libraries. Keys are always resolved dynamically from the JWK Set.
+
+## Validation Procedure ## {#trust-validation}
+
+When an agent encounters a manifest with a `signature` field, it MUST perform the following validation steps before trusting the manifest for [=Candidate Context=] transmission at `consent_scope` of `application_prefill` or `full_profile`, or before submitting `application_data`:
+
+1. **Domain match.** Verify that the manifest was fetched over HTTPS from a domain matching the `signature.iss` claim (when present). Reject on mismatch — error: `domain_mismatch`.
+2. **Canonicalize.** Reproduce the canonicalized manifest bytes per [[#trust-canonicalization]].
+3. **Resolve key.** Fetch (or use cached) JWK Set from `{origin}/.well-known/ojcp-keys.json`. Find the key matching `signature.kid`. Refetch on cache miss. Reject if not found — error: `key_resolution_failed`.
+4. **Verify algorithm.** Verify `signature.alg` matches the JWK's declared algorithm. Reject on mismatch — error: `algorithm_mismatch`.
+5. **Verify signature.** Validate the JWS signature over the canonicalized bytes using the resolved key. Reject on failure — error: `invalid_signature`.
+6. **Check expiration.** Verify `signature.expires_at` is in the future, with a clock skew tolerance of 60 seconds. Reject if expired — error: `expired_signature`.
+
+If any step fails, the agent MUST treat the manifest as `unverified` and apply the corresponding restrictions ([[#trust-agent-obligations]]).
+
+## When to Validate ## {#trust-when-to-validate}
+
+Signature validation imposes cost (one extra HTTPS fetch per provider on cold cache, plus a signature verify). To minimize overhead, agents validate **lazily — at the consent boundary**.
+
+Agents MUST validate the manifest signature before:
+
+- Submitting `application_data` via `submit_application`
+- Transmitting `candidate_context` with `consent_scope` of `application_prefill` or `full_profile`
+
+Agents MAY skip validation for read-only operations:
+
+- `search_jobs`
+- `get_job_detail`
+- `get_employer_context`
+- Transmitting `candidate_context` with `consent_scope` of `search_personalization` or `fit_scoring`
+
+This means an agent browsing jobs pays no signing cost. Validation runs only when the agent is about to send PII or initiate a real application.
+
+## Registry Trust Tiers ## {#trust-tiers}
+
+The OJCP Registry ([OJCP: OJCP Registry](../#discovery-registry)) classifies listed providers into three tiers based on accumulated trust signals:
+
+<table class="data">
+  <thead>
+    <tr><th>Tier</th><th>Requirements</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>`unverified`</td>
+      <td>Manifest exists at `/.well-known/ojcp.json` and parses as valid OJCP. No signature required. Default tier on first registration.</td>
+    </tr>
+    <tr>
+      <td>`verified`</td>
+      <td>All `unverified` requirements, plus: manifest carries a valid signature ([[#trust-manifest-signing]]) and the registry has confirmed the employer identity (e.g., business registration cross-check, LinkedIn company page match, DUNS lookup, or equivalent).</td>
+    </tr>
+    <tr>
+      <td>`audited`</td>
+      <td>All `verified` requirements, plus: the provider passes the OJCP conformance test suite, has completed a security review covering manifest signing key handling and PII flows, and has been listed without abuse reports for at least 90 days.</td>
+    </tr>
+  </tbody>
+</table>
+
+The `find_ojcp_providers` response includes a `trust_tier` field for each provider. Agents MAY filter results by `min_trust_tier` (e.g., only return `verified` or higher).
+
+The registry exposes a `manifest_signed` boolean alongside `trust_tier` so agents can distinguish "the manifest is signed" from "the registry has additionally verified employer identity."
+
+## Agent Obligations ## {#trust-agent-obligations}
+
+Agents MUST adjust their behavior based on the trust signals available for a provider:
+
+<table class="data">
+  <thead>
+    <tr><th>Provider state</th><th>Maximum `consent_scope`</th><th>Submission allowed?</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Manifest unsigned, no registry record</td>
+      <td>`fit_scoring`</td>
+      <td>Only with explicit, per-submission user consent</td>
+    </tr>
+    <tr>
+      <td>Manifest signed, registry tier `unverified`</td>
+      <td>`fit_scoring`</td>
+      <td>Only with explicit, per-submission user consent</td>
+    </tr>
+    <tr>
+      <td>Registry tier `verified`</td>
+      <td>`application_prefill`</td>
+      <td>Yes, subject to standard consent rules</td>
+    </tr>
+    <tr>
+      <td>Registry tier `audited`</td>
+      <td>`full_profile`</td>
+      <td>Yes, subject to standard consent rules</td>
+    </tr>
+  </tbody>
+</table>
+
+Agents SHOULD surface the trust tier to end users before submission so candidates can make informed decisions. Agents MUST NOT attempt to upgrade a provider's effective trust tier through caching or by ignoring failed signature validations.
+
+## Provider-Side Considerations ## {#trust-provider-considerations}
+
+Providers SHOULD sign their manifests to enable the `verified` registry tier and avoid the agent-side restrictions on unsigned providers. Implementation notes:
+
+- The signing key MUST be kept secure. A compromised signing key allows an attacker to mint manifests that agents will trust until the key is revoked from the JWK Set.
+- Manifests SHOULD be re-signed regularly (RECOMMENDED: daily) to keep the `signature.expires_at` window short. This limits the window in which a compromised manifest can be served.
+- Build pipelines SHOULD sign manifests automatically rather than requiring human intervention. Long-lived signatures from manual signing increase risk.
+- Providers operating multiple subdomains (e.g., `careers.acme.com` and `jobs.acme.com`) MAY share a single JWK Set if both domains can serve it — the `signature.iss` claim distinguishes which domain a given signature is bound to.

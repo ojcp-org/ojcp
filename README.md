@@ -20,7 +20,7 @@ AI agents are beginning to search for jobs, evaluate opportunities, and submit a
 
 **OJCP defines how job opportunities, employer context, and application affordances are expressed so that AI agents can discover, reason over, and act on them.** It composes with the [Model Context Protocol (MCP)](https://modelcontextprotocol.io), [WebMCP](https://developer.chrome.com/docs/ai/webmcp), and schema.org/JobPosting.
 
-- 📖 **Spec:** [spec.ojcp.dev](https://spec.ojcp.dev/)
+- 📖 **Spec:** [spec.ojcp.dev](https://spec.ojcp.dev/) (core), with optional extensions: [Trust](https://spec.ojcp.dev/trust/), [Mandates](https://spec.ojcp.dev/mandates/), [Candidate Verification](https://spec.ojcp.dev/verification/)
 - 🌐 **Site:** [ojcp.dev](https://ojcp.dev)
 - ✅ **Conformance suite:** [ojcp-org/conformance](https://github.com/ojcp-org/conformance)
 - 🗂️ **Provider registry:** [ojcp-org/registry](https://github.com/ojcp-org/registry)
@@ -69,7 +69,10 @@ See [GOVERNANCE.md](GOVERNANCE.md) for the seat table, term rules, and how chang
 
 ```
 /spec
-  ojcp-v0.1.bs              # Bikeshed spec source (compiles to spec.ojcp.dev)
+  ojcp.bs                   # Core spec (compiles to spec.ojcp.dev)
+  ojcp-trust.bs             # Trust extension (spec.ojcp.dev/trust/)
+  ojcp-mandates.bs          # Mandates extension (spec.ojcp.dev/mandates/)
+  ojcp-verification.bs      # Candidate Verification extension (spec.ojcp.dev/verification/)
 /schemas
   README.md                 # $id convention + how to validate offline
   manifest.json             # ojcp.json manifest schema
@@ -242,16 +245,22 @@ When an agent proves its identity, the provider verifies the request signature, 
 
 **Current release: [0.3](https://github.com/ojcp-org/ojcp/releases/tag/v0.3)** (2026-10-08). Minor releases are additive and backward-compatible: the schema namespace stays at `/v0.1/`, and implementations of earlier versions remain conforming. See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
-**Specification** — published at [spec.ojcp.dev](https://spec.ojcp.dev/), with JSON Schemas for every data type and tool:
+**Specification** — published at [spec.ojcp.dev](https://spec.ojcp.dev/), with JSON Schemas for every data type and tool. A conforming provider or agent implements **core**; each extension is optional and claimed separately.
+
+Core:
 
 - Job manifest, job tools, apply paths, and screening questions
 - JobPosting with multi-location support, eligibility gates, and the `official_job_url` trust anchor
 - Verifiable agent identity, with namespace and delegated binding
-- User mandates for action-level authorization
 - Agent-scoped job visibility
 - Provider-derived attribution
-- Identity verification, including inline rendering via MCP Apps
-- Provider trust (signed manifests) and resume upload
+- Resume upload
+
+Optional extensions:
+
+- [Trust](https://spec.ojcp.dev/trust/): signed manifests, JWK Set discovery, provider trust tiers
+- [Mandates](https://spec.ojcp.dev/mandates/): user mandates for action-level authorization
+- [Candidate Verification](https://spec.ojcp.dev/verification/): identity verification, including inline rendering via MCP Apps
 
 **Ecosystem**
 

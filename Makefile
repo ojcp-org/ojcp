@@ -1,7 +1,7 @@
 .PHONY: all spec diagrams clean
 
-SPEC_SRC = spec/ojcp-v0.1.bs
-SPEC_OUT = spec/ojcp-v0.1.html
+SPEC_SRC = $(wildcard spec/*.bs)
+SITE_DIR = _site
 
 MMDC = npx mmdc
 MMD_SRC = $(wildcard diagrams/*.mmd)
@@ -10,12 +10,12 @@ IMG_PNG = $(patsubst diagrams/%.mmd,$(IMG_DIR)/%.png,$(MMD_SRC))
 
 all: spec diagrams
 
-spec: $(SPEC_OUT)
+spec: $(SITE_DIR)/index.html
 
 diagrams: $(IMG_PNG)
 
-$(SPEC_OUT): $(SPEC_SRC)
-	bikeshed spec $< $@
+$(SITE_DIR)/index.html: $(SPEC_SRC) scripts/build-spec.sh
+	scripts/build-spec.sh . $(SITE_DIR)
 
 $(IMG_DIR)/%.png: diagrams/%.mmd node_modules | $(IMG_DIR)
 	$(MMDC) -i $< -o $@ --scale 2 --configFile diagrams/mermaid.config.json
@@ -28,4 +28,4 @@ node_modules: package.json
 	@touch $@
 
 clean:
-	rm -f $(SPEC_OUT) $(IMG_PNG)
+	rm -rf $(SITE_DIR) $(IMG_PNG)

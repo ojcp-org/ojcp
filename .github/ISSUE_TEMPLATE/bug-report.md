@@ -14,7 +14,8 @@ labels: bug
 
 ### Affected files
 
-- [ ] `spec/ojcp-v0.1.bs`
+- [ ] `spec/ojcp.bs` (core)
+- [ ] `spec/ojcp-trust.bs`, `spec/ojcp-mandates.bs` or `spec/ojcp-verification.bs` (extensions) — which:
 - [ ] `schemas/` — which:
 - [ ] `examples/` — which:
 - [ ] `docs/proposal.md`

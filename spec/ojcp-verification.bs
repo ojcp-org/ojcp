@@ -1,0 +1,518 @@
+<pre class='metadata'>
+Title: OJCP Candidate Verification
+Shortname: ojcp-verification
+Level: 1
+Status: LD
+URL: https://spec.ojcp.dev/verification/
+Editor: Austin Anderson, Recruitics https://www.recruitics.com/, austin@recruitics.com
+Abstract: OJCP Candidate Verification is an optional companion specification to the Open Job Context Protocol. It defines how providers request, and agents orchestrate, identity verification of the candidate behind an application, without candidate PII flowing through the protocol.
+Markup Shorthands: markdown yes
+Date: 2026-11-12
+Version History: https://github.com/ojcp-org/ojcp/commits/main
+Repository: ojcp-org/ojcp
+Boilerplate: conformance no, copyright no
+</pre>
+
+<pre class='metadata'>
+Text Macro: VERSION 0.3
+</pre>
+
+<pre class='link-defaults'>
+spec:dom; type:dfn; for:/; text:document
+</pre>
+
+<pre class="copyright">
+Copyright &copy; 2026 The OJCP Authors. Licensed under the <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>. See <a href="https://github.com/ojcp-org/ojcp/blob/main/GOVERNANCE.md">GOVERNANCE.md</a> for the project's governance model.
+</pre>
+
+<pre class="anchors">
+spec: ojcp; type: dfn; urlPrefix: ../
+    text: Apply Path; url: #apply-path
+    text: Identity Verifier; url: #identity-verifier
+    text: Job Manifest; url: #job-manifest
+    text: Verification Proof; url: #verification-proof
+    text: Verification Step; url: #verification-step
+</pre>
+
+# Introduction # {#intro}
+
+This document extends [OJCP](../), which defines the tools, apply paths and the verification schemas it refers to. Implementing it is OPTIONAL: it applies only when a provider requires verification for an apply path.
+
+# Identity Verification # {#identity-verification}
+
+As AI agents begin submitting applications on behalf of candidates, employers increasingly need to verify that a real, identifiable human stands behind each submission. OJCP defines how agents discover, orchestrate, and submit identity [=Verification Proofs=] without PII ever flowing through the protocol.
+
+## Overview ## {#identity-overview}
+
+Identity verification in OJCP is a three-party interaction:
+
+1. The **provider** declares which [=apply paths=] require verification and which [=Identity Verifiers=] are accepted. The provider initiates verification sessions with verifiers and may collect proofs directly (**provider-managed**) or delegate proof collection to the agent (**agent-submitted**).
+2. The **agent** detects verification requirements, presents the verification URL to the candidate, and — for agent-submitted flows — collects the resulting proof and submits it with the application.
+3. The **[=Identity Verifier=]** (e.g., ID.me, Clear) performs the actual verification (face scan, document upload, etc.) and issues a signed [=Verification Proof=].
+
+## Flow ## {#identity-flow}
+
+The verification flow depends on the `proof_delivery` mode declared in each [=Verification Step=]:
+
+### Agent-Submitted Flow ### {#identity-flow-agent}
+
+When `proof_delivery` is `"agent_submitted"` (or omitted — this is the default):
+
+1. Agent calls `begin_application` — provider returns `status: "pending_verification"` with a `verification_steps` array.
+2. Agent inspects each step's `type`, `verifier_id`, `verification_url`, and `proof_delivery`.
+3. Agent presents the `verification_url` to the candidate (opens browser, deep link, etc.). The `human_required` flag indicates the agent cannot complete this step itself.
+4. Candidate completes verification with the [=Identity Verifier=] (face scan, government ID upload, etc.).
+5. [=Identity Verifier=] issues a [=Verification Proof=] — a signed JWS artifact.
+6. Proof is delivered to the agent (see [[#identity-proof-delivery]]).
+7. Agent calls `submit_application` with the `verification_proofs` array and the `session_token` from step 1.
+8. Provider validates each proof (see [[#identity-claim-validation]]).
+9. Application accepted — status transitions to `submitted`.
+
+### Provider-Managed Flow ### {#identity-flow-provider}
+
+When `proof_delivery` is `"provider_managed"` (common for embedded verification like an iframe within an apply form):
+
+1. Agent calls `begin_application` — provider returns `status: "pending_verification"` with a `verification_steps` array where `proof_delivery` is `"provider_managed"`.
+2. Agent presents the `verification_url` to the candidate.
+3. Candidate completes verification. The proof is delivered directly to the provider via server callback or iframe `postMessage` — the agent never handles the proof.
+4. Agent polls `check_application_status` until the status advances from `pending_verification`.
+5. Agent calls `submit_application` **without** `verification_proofs` — the provider already has them.
+6. Application accepted — status transitions to `submitted`.
+
+For provider-managed steps, `verification_proofs` in `submit_application` is NOT required. Providers MUST NOT return `missing_proof` errors for steps where `proof_delivery` was `"provider_managed"`.
+
+## No PII Through OJCP ## {#identity-no-pii}
+
+[=Verification Proofs=] MUST NOT contain personally identifiable information. A proof contains:
+
+- `subject_hash` — A one-way hash identifying the verified individual. Not reversible to PII.
+- `verification_type` — What was verified (e.g., `identity`, `biometric`).
+- `verifier_id` — Who verified it.
+- `issued_at` / `expires_at` — Timestamps.
+- `proof_token` — The signed artifact itself.
+
+Biometric data, government ID numbers, names, and dates of birth MUST remain with the [=Identity Verifier=] and MUST NOT be transmitted through OJCP or to the provider.
+
+## Session Initiation ## {#identity-session-initiation}
+
+When a provider receives a `begin_application` request for a job that requires identity verification, the provider MUST create a verification session with each required [=Identity Verifier=] before returning the `pending_verification` response.
+
+The provider initiates a session by sending a POST request to the verifier's `verification_endpoint` (declared in the verifier's manifest). The request SHOULD include:
+
+- `provider_id` — The provider's domain or identifier. Becomes the `aud` claim in the proof.
+- `verification_type` — The type of verification required (e.g., `"identity"`, `"background_check"`).
+- `nonce` — A unique, application-scoped value that binds the resulting proof to this specific application session. Providers MUST use the `application_id` or a derivative.
+- `callback_url` — (For `provider_managed` delivery) The HTTPS URL where the verifier should POST the proof upon completion.
+- `redirect_url` — (For `agent_submitted` delivery via redirect) The URL to redirect the candidate's browser to after verification, with the `proof_token` appended as a query parameter.
+
+The verifier responds with:
+
+- `session_id` — The verifier's internal session identifier.
+- `verification_url` — A session-scoped URL where the candidate completes verification. This URL is what the provider includes in the `verification_steps` array.
+- `expires_at` — When the verification session expires.
+
+<div class="example">
+Provider → Verifier session initiation request:
+
+```json
+POST https://verify.clear.me/ojcp/start
+{
+  "provider_id": "careers.acme.com",
+  "verification_type": "identity",
+  "nonce": "app_abc123",
+  "callback_url": "https://careers.acme.com/ojcp/verify/callback"
+}
+```
+
+Verifier response:
+
+```json
+{
+  "session_id": "clear_sess_789",
+  "verification_url": "https://verify.clear.me/session/clear_sess_789",
+  "expires_at": "2026-03-20T12:00:00Z"
+}
+```
+</div>
+
+Note: The session initiation protocol between provider and verifier is intentionally minimal. Verifiers MAY require additional parameters (API keys, webhook signatures, etc.) — these are bilateral agreements outside the scope of OJCP. OJCP defines the *proof format*, *delivery model*, and *validation procedure*; the verifier's internal session API is their own.
+
+## Proof Delivery ## {#identity-proof-delivery}
+
+After a candidate completes verification, the [=Verification Proof=] must reach the party that will submit it to the provider. OJCP defines two delivery models, declared via the `proof_delivery` field on each [=Verification Step=]:
+
+### Provider-Managed Delivery ### {#identity-delivery-provider}
+
+When `proof_delivery` is `"provider_managed"`, the provider collects the proof directly from the verifier without agent involvement. This model is typical for embedded verification flows — for example, an [=Identity Verifier=] rendered as an iframe step within an apply form.
+
+Delivery channels for provider-managed proofs:
+
+- **Server callback** — The verifier POSTs the signed proof to the `callback_url` the provider supplied during [[#identity-session-initiation]]. This is the RECOMMENDED channel for provider-managed delivery. The callback payload SHOULD include `session_id`, `proof_token`, and `verification_type`.
+- **Client-side messaging** — For iframe embeddings, the verifier's page sends the proof to the parent frame via `window.parent.postMessage()`. The provider's page listens for the message and extracts the proof.
+
+In both cases, the agent never handles the proof. The agent polls `check_application_status` until verification completes, then calls `submit_application` without `verification_proofs`.
+
+### Agent-Submitted Delivery ### {#identity-delivery-agent}
+
+When `proof_delivery` is `"agent_submitted"` (or omitted), the agent is responsible for collecting the proof and including it in `submit_application`. Delivery channels:
+
+- **Redirect** — After verification, the verifier redirects the candidate's browser to the `redirect_url` (if provided during session initiation) with `proof_token` as a query parameter. The agent or its browser extension captures the token from the redirect.
+- **Polling** — The agent polls the verifier's session status endpoint (e.g., `GET {verification_endpoint}/{session_id}`) to check whether verification is complete and retrieve the `proof_token`. Verifiers that support polling SHOULD declare `"polling"` in their manifest's `proof_delivery_methods`.
+
+Agents SHOULD prefer redirect-based delivery when available, falling back to polling. Agents MUST NOT poll more frequently than once every 5 seconds.
+
+### Inline Rendering via MCP Apps ### {#identity-inline-mcp-apps}
+
+A [=Verification Step=] MAY be completed inline in the conversation instead of through `verification_url`. The [MCP Apps extension](https://apps.extensions.modelcontextprotocol.io) lets a tool reference a `ui://` resource that the host renders in a sandboxed iframe. Inline rendering is an alternative *delivery surface* for the candidate interaction; it is not a third `proof_delivery` mode, and it does not change how proofs are delivered or validated.
+
+An [=Identity Verifier=] that supports inline rendering advertises it by including `"embedded_app"` in its manifest's `proof_delivery_methods` (see [[#identity-discovery]]). A provider MAY then include the verifier's resource URI as `ui_resource` on the [=Verification Step=]:
+
+<div class="example">
+```json
+{
+  "step_id": "vs_1",
+  "type": "identity",
+  "verifier_id": "id.me",
+  "human_required": true,
+  "verification_url": "https://verify.id.me/flow/abc123",
+  "ui_resource": "ui://id.me/verify/abc123",
+  "proof_delivery": "provider_managed",
+  "expires_at": "2026-09-25T14:30:00Z"
+}
+```
+</div>
+
+**Fallback.** `ui_resource` is OPTIONAL and `verification_url` remains REQUIRED. A host that does not support MCP Apps, or a candidate on a surface that cannot render the resource, uses `verification_url` with no loss of function. Providers and [=Identity Verifiers=] MUST NOT return a [=Verification Step=] that can only be completed through `ui_resource`.
+
+**Proof delivery is unchanged.** For `provider_managed` steps, the verifier delivers the proof to the provider through the channels in [[#identity-delivery-provider]]; the app only drives the candidate interaction. For `agent_submitted` steps, the app returns the proof to the host, which supplies it to `submit_application` in `verification_proofs`, exactly as for a proof collected through the hosted flow. The exact channel by which an app hands the proof back to the host is not defined by this version.
+
+**Obligations:**
+
+- [=Identity Verifiers=] that declare `embedded_app` MUST serve a `ui://` resource that completes the same verification and yields the same [=Verification Proof=] as their hosted flow, and MUST keep `verification_url` valid as the fallback.
+- Providers MUST treat a step whose proof arrives through the app identically to one completed through `verification_url`. The delivery surface does not change how the proof is validated (see [[#identity-claim-validation]]).
+- Hosts render the resource in a sandbox and remain the enforcement point for permissions and for which origins the app may load (Content Security Policy), per MCP Apps.
+
+**Privacy.** The verifier owns and hosts the UI, which runs in the verifier's own origin inside the host's sandbox. Biometric data, documents and other PII captured by the app are handled by the verifier and MUST NOT be transmitted through OJCP (see [[#identity-no-pii]]). Only the signed, opaque [=Verification Proof=] crosses back through the protocol.
+
+OJCP defines only the advertisement (`embedded_app`), the `ui_resource` reference and the fallback contract; it does not define the UI itself.
+
+## Proof Format and Required Claims ## {#identity-proof-format}
+
+The `proof_token` in a [=Verification Proof=] MUST be a JWS (JSON Web Signature, [[RFC7515]]) in compact serialization format.
+
+### JWS Header ### {#identity-jws-header}
+
+The JWS header MUST include:
+
+- `alg` — The signing algorithm. `ES256` (ECDSA with P-256 and SHA-256) is RECOMMENDED. `RS256` (RSASSA-PKCS1-v1_5 with SHA-256) is acceptable. `ES384` and `RS384` (384-bit variants) are also permitted. Verifiers declare supported algorithms in their manifest's `signing_algorithms` field.
+- `kid` — Key identifier matching a key in the verifier's JWK Set.
+
+### Required JWT Claims ### {#identity-jwt-claims}
+
+The JWS payload MUST include the following claims:
+
+- `iss` (Issuer) — The `verifier_id` of the [=Identity Verifier=] that issued the proof. Providers MUST verify this matches the expected verifier.
+- `aud` (Audience) — The provider domain or identifier this proof is intended for. Proofs with a specific `aud` are scoped to one provider. Verifiers MAY issue proofs with `aud: "*"` to enable cross-provider reuse; providers MAY reject wildcard-audience proofs.
+- `sub` (Subject) — The `subject_hash` — a SHA-256 hex digest of the verifier's canonical subject identifier. MUST NOT be reversible to PII.
+- `iat` (Issued At) — NumericDate when the proof was issued ([[RFC7519]] Section 4.1.6).
+- `exp` (Expiration Time) — NumericDate when the proof expires.
+- `nonce` — An application-scoped value binding this proof to a specific application session. The `nonce` claim MUST always be present. Providers MUST use the `application_id` as the nonce value. Providers MUST reject proofs where the `nonce` does not match the expected `application_id` for the application.
+
+### Subject Hash ### {#identity-subject-hash}
+
+The `subject_hash` (and corresponding `sub` claim) MUST be computed as:
+
+```
+subject_hash = SHA-256( canonical_subject_identifier )
+```
+
+Where `canonical_subject_identifier` is a stable, verifier-internal identifier for the verified individual (e.g., the verifier's internal user ID). The algorithm is always SHA-256; the output is a lowercase hex string. The identifier MUST be stable across verification sessions for the same individual to enable proof reuse.
+
+### JWKS Discovery ### {#identity-jwks}
+
+Providers validate proof signatures against the verifier's published JWK Set ([[RFC7517]]). The JWK Set URL is declared in the verifier manifest as `public_keys_url`.
+
+Providers SHOULD:
+
+- Fetch the JWK Set over HTTPS and cache it. A cache TTL of 1 hour is RECOMMENDED; providers MUST refetch when encountering an unknown `kid`.
+- Match the `kid` from the JWS header to a key in the JWK Set.
+- Verify the `alg` in the JWS header matches the key's `alg` field.
+- Reject proofs signed with algorithms not in the verifier's declared `signing_algorithms`.
+
+### Key Rotation ### {#identity-key-rotation}
+
+[=Identity Verifiers=] SHOULD rotate signing keys periodically (RECOMMENDED: every 90 days). During rotation:
+
+- The verifier MUST publish both old and new keys in its JWK Set for an overlap period of at least 24 hours. This ensures proofs signed with the outgoing key remain validatable during the transition.
+- The verifier SHOULD begin signing new proofs with the new key immediately, while keeping the old key in the JWK Set.
+- After the overlap period, the verifier MAY remove the old key from the JWK Set. Proofs signed with the removed key will no longer validate — this is expected, as they should have expired by then.
+
+Providers MUST handle key rotation gracefully:
+
+- When a `kid` is not found in the cached JWK Set, refetch the set before rejecting the proof.
+- Do not hard-code `kid` values or signing keys. Always resolve dynamically from the JWK Set.
+
+### Clock Skew ### {#identity-clock-skew}
+
+When validating `iat` and `exp` claims, providers MUST allow for reasonable clock drift between systems. A tolerance of **60 seconds** is RECOMMENDED. Providers MUST NOT accept proofs where `exp` is more than 60 seconds in the past, or where `iat` is more than 60 seconds in the future.
+
+## Verifier Discovery ## {#identity-discovery}
+
+[=Identity Verifiers=] MAY host a descriptor at `/.well-known/ojcp-verifier.json`:
+
+<div class="example">
+```json
+{
+  "ojcp_verifier_version": "0.1",
+  "verifier_id": "id.me",
+  "verifier_name": "ID.me",
+  "description": "Identity verification for workforce and government applications.",
+  "verification_types": ["identity", "government_id", "biometric"],
+  "verification_endpoint": "https://verify.id.me/ojcp/start",
+  "proof_delivery_methods": ["callback", "redirect", "polling", "embedded_app"],
+  "proof_format": "jws",
+  "signing_algorithms": ["ES256"],
+  "proof_ttl_seconds": 86400,
+  "public_keys_url": "https://id.me/.well-known/ojcp-verifier-keys.json",
+  "supported_countries": ["US"]
+}
+```
+</div>
+
+The `public_keys_url` endpoint returns a JWK Set that providers use to validate [=Verification Proof=] signatures.
+
+Providers declare accepted verifiers in their [=Job Manifest=] via the `supported_verifiers` field.
+
+Note: The verifier manifest schema also allows `proof_format: "jws+jwe"` to signal support for signed-then-encrypted proofs ([[RFC7516]]). JWE handling rules (key exchange, encryption algorithms, decryption procedures) are not defined by this specification. Providers SHOULD reject `jws+jwe` proofs they cannot decrypt.
+
+## Proof Reuse ## {#identity-proof-reuse}
+
+[=Verification Proofs=] are bound to a specific application session via the `nonce` claim and are NOT reusable across applications. A proof issued for one `application_id` cannot be replayed against a different application.
+
+- **Audience-scoped proofs** (`aud` set to a specific provider): Bound to one provider and one application.
+- **Wildcard-audience proofs** (`aud: "*"`): Can be submitted to any provider, but only for the application matching the `nonce`. This allows a candidate to verify once and apply to multiple jobs in a single session, as long as the provider mints a new `application_id` (and thus a new `nonce`) for each.
+
+Agents MUST NOT cache proofs beyond their `expires_at`. Providers MUST reject proofs where the `nonce` does not match the expected `application_id`. Providers MAY reject proofs from unrecognized verifiers. Providers SHOULD reject proofs older than the verifier's declared `proof_ttl_seconds` even if `expires_at` has not passed.
+
+## Asynchronous Verification ## {#identity-async}
+
+Some verifications complete in seconds (face scan, government ID upload). Others take days (employment verification, background check). OJCP defines polling guidance, completion expectations, and abandonment semantics so agents and providers behave predictably across the full timescale.
+
+### Expected Completion Times ### {#identity-async-times}
+
+The following ranges are typical defaults. Providers MAY override per-step via `estimated_completion_minutes` on a [=Verification Step=]. Agents SHOULD prefer the per-step value when present.
+
+<table class="data">
+  <thead>
+    <tr><th>Verification type</th><th>Typical range</th><th>Polling tier</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>`identity`</td><td>2–10 minutes</td><td>Fast</td></tr>
+    <tr><td>`government_id`</td><td>2–10 minutes</td><td>Fast</td></tr>
+    <tr><td>`biometric`</td><td>2–10 minutes</td><td>Fast</td></tr>
+    <tr><td>`address`</td><td>1–24 hours</td><td>Slow</td></tr>
+    <tr><td>`employment`</td><td>1–3 business days</td><td>Slow</td></tr>
+    <tr><td>`education`</td><td>2–7 business days</td><td>Slow</td></tr>
+    <tr><td>`background_check`</td><td>1–5 business days</td><td>Slow</td></tr>
+  </tbody>
+</table>
+
+### Polling Cadence ### {#identity-async-polling}
+
+When `proof_delivery` is `provider_managed`, agents poll `check_application_status` to detect verification completion. Cadence depends on the elapsed time relative to `estimated_completion_minutes`:
+
+- **Active phase** (elapsed time ≤ estimated_completion_minutes): Poll every 30 seconds.
+- **Extended phase** (1× to 3× estimated_completion_minutes): Poll every 5 minutes.
+- **Long-tail phase** (3× to 24× estimated_completion_minutes): Poll every 1 hour.
+- **Stalled phase** (> 24× estimated_completion_minutes, but before `verification_deadline`): Poll every 6 hours.
+
+Agents MUST NOT poll `check_application_status` more frequently than once every 30 seconds for any single application. Providers SHOULD return HTTP 429 with `Retry-After` if an agent exceeds this rate.
+
+Agents SHOULD honor any `Retry-After` value returned by the provider, even when it exceeds the cadence above.
+
+### Verification Deadline ### {#identity-async-deadline}
+
+Each application with verification requirements has a `verification_deadline` — the absolute time after which any incomplete verification causes the application to transition to `expired`.
+
+The `verification_deadline` is returned in the `begin_application` response and is a top-level field on the response object alongside `verification_steps`. Default values:
+
+- If all verification steps are `Fast` tier: 24 hours from `begin_application`.
+- If any step is `Slow` tier: 14 days from `begin_application`.
+- Providers MAY set custom deadlines; the value MUST be returned to the agent so it can plan polling behavior.
+
+When `verification_deadline` is reached:
+
+- Provider MUST transition the application status to `expired`.
+- Provider MUST NOT accept further `verification_proofs` for that `application_id`.
+- Provider MUST NOT accept `submit_application` for that `application_id`.
+- Agents MUST stop polling for that application.
+
+### Abandonment Semantics ### {#identity-async-abandonment}
+
+An application is considered **abandoned** when:
+
+- `verification_deadline` is reached with one or more required steps incomplete, OR
+- The candidate explicitly cancels (out of band — UI cancellation, agent revokes consent), OR
+- The agent has not polled or otherwise interacted for a provider-defined inactivity period (RECOMMENDED: 7 days for Slow tier, 1 hour for Fast tier).
+
+On abandonment, providers:
+
+- MUST transition application status to `expired`.
+- SHOULD purge or anonymize any application data (resume URL, screening answers, candidate context) within 30 days unless retention is required by law (e.g., OFCCP record-keeping) or the candidate has explicitly opted into a candidate-facing pipeline (e.g., a talent pool).
+- MUST NOT continue to call the verifier or hold open verification sessions for an abandoned application.
+
+### Resumption ### {#identity-async-resumption}
+
+If a candidate returns to complete verification after an agent stops polling (e.g., user closes the browser, agent times out), the agent or candidate MUST initiate a new application with `begin_application`. Providers MAY choose to recognize the candidate (via prior identity verification) and pre-fill or fast-track the new application, but each application has its own `application_id`, `nonce`, and `verification_deadline`.
+
+Providers MUST NOT extend an existing `verification_deadline` retroactively — once an application is `expired`, it remains expired.
+
+### Agent Behavior on Long-Running Verifications ### {#identity-async-agent}
+
+For Slow-tier verifications, agents SHOULD:
+
+- Inform the candidate that verification will take time and the application will not complete in the same session.
+- Persist the `application_id`, `session_token`, and `verification_deadline` so the agent can resume polling later.
+- Schedule polling at the cadence above rather than blocking on the verification.
+- Notify the candidate (via the agent's own UI or notification channel) when verification completes or expires.
+
+Agents MUST NOT promise the candidate a specific completion time tighter than `estimated_completion_minutes` (or the typical range above when no estimate is provided).
+
+## Provider Claim Validation ## {#identity-claim-validation}
+
+When a provider receives a [=Verification Proof=], it MUST perform the following validation steps:
+
+1. **Structure** — Verify the `proof_token` is valid JWS compact serialization (three Base64url-encoded segments separated by `.`). Error: `invalid_structure`.
+2. **Key resolution** — Extract `kid` from the JWS header. Fetch (or use cached) JWK Set from the verifier's `public_keys_url`. Find the matching key. Error: `key_resolution_failed`.
+3. **Signature** — Validate the JWS signature using the resolved public key and declared `alg`. Error: `invalid_signature`.
+4. **Issuer** — Verify `iss` matches the expected `verifier_id`. Error: `issuer_mismatch`.
+5. **Audience** — Verify `aud` matches the provider's domain or identifier, or is `"*"`. Error: `audience_mismatch`.
+6. **Expiry** — Verify `exp` is in the future and `iat` is in the past (with clock skew tolerance per [[#identity-clock-skew]]). Error: `expired_proof`.
+7. **Nonce** — Verify `nonce` matches the expected `application_id` for this application session. Error: `nonce_mismatch`.
+8. **Type** — Verify the outer `verification_type` matches the step's required type. Error: `type_mismatch`.
+
+The complete set of verification error codes is: `invalid_structure`, `key_resolution_failed`, `invalid_signature`, `issuer_mismatch`, `audience_mismatch`, `expired_proof`, `nonce_mismatch`, `type_mismatch`, `unrecognized_verifier`, `missing_proof`.
+
+If any check fails, the provider MUST return `verification_failed` with the appropriate error code in `verification_errors`.
+
+## Multi-Verifier Example ## {#identity-multi-verifier}
+
+Jobs may require multiple verification types from different [=Identity Verifiers=]. For example, a financial compliance role might require both identity verification (Clear) and a background check (Checkr).
+
+<div class="example">
+Manifest excerpt declaring multiple verifiers:
+
+```json
+{
+  "supported_verifiers": [
+    {
+      "verifier_id": "clear",
+      "verifier_name": "Clear",
+      "verifier_manifest_url": "https://clear.me/.well-known/ojcp-verifier.json",
+      "verification_types": ["identity", "biometric"],
+      "required_for_paths": ["ats_direct"]
+    },
+    {
+      "verifier_id": "checkr",
+      "verifier_name": "Checkr",
+      "verifier_manifest_url": "https://checkr.com/.well-known/ojcp-verifier.json",
+      "verification_types": ["background_check"],
+      "required_for_paths": ["ats_direct"]
+    }
+  ]
+}
+```
+</div>
+
+<div class="example">
+A `begin_application` response with multiple verification steps — one provider-managed (Clear embedded in the apply form), one agent-submitted (Checkr sends the candidate a separate link):
+
+```json
+{
+  "ojcp_version": "0.3",
+  "application_id": "app_fin_456",
+  "status": "pending_verification",
+  "apply_path": {
+    "type": "ats_direct",
+    "url": "https://careers.globex.com/apply/ciso-2026-003",
+    "required_fields": ["resume", "email", "name"],
+    "supports_agent_submission": true,
+    "requires_verification": true,
+    "accepted_verifiers": ["clear", "checkr"]
+  },
+  "verification_steps": [
+    {
+      "step_id": "vs_1",
+      "type": "identity",
+      "verifier_id": "clear",
+      "verifier_name": "Clear",
+      "verification_url": "https://verify.clear.me/session/clear_sess_789",
+      "required": true,
+      "human_required": true,
+      "proof_delivery": "provider_managed",
+      "estimated_completion_minutes": 3,
+      "instructions": "Identity verification is embedded in the apply form. The candidate will complete a face scan within the application flow."
+    },
+    {
+      "step_id": "vs_2",
+      "type": "background_check",
+      "verifier_id": "checkr",
+      "verifier_name": "Checkr",
+      "verification_url": "https://checkr.com/verify/chk_abc123",
+      "required": true,
+      "human_required": true,
+      "proof_delivery": "agent_submitted",
+      "estimated_completion_minutes": 10,
+      "instructions": "Candidate must authorize a background check via Checkr. Open the verification URL in a browser."
+    }
+  ],
+  "session_token": "sess_globex_789",
+  "expires_at": "2026-03-20T12:00:00Z"
+}
+```
+</div>
+
+In this example, the agent handles the two steps differently:
+
+1. **Clear (provider-managed)** — The agent presents the apply form to the candidate. Clear's verification is embedded as a step in the form. The provider receives the proof directly via callback. The agent does not handle this proof.
+2. **Checkr (agent-submitted)** — The agent opens the Checkr verification URL for the candidate. After the candidate completes the background check, the agent collects the proof (via redirect or polling) and includes it in `submit_application`.
+
+When calling `submit_application`, the agent only includes proofs for `agent_submitted` steps:
+
+<div class="example">
+```json
+{
+  "application_id": "app_fin_456",
+  "session_token": "sess_globex_789",
+  "verification_proofs": [
+    {
+      "step_id": "vs_2",
+      "verifier_id": "checkr",
+      "verification_type": "background_check",
+      "proof_token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNoZWNrci1rZXktMSJ9.eyJpc3MiOiJjaGVja3IiLCJhdWQiOiJjYXJlZXJzLmdsb2JleC5jb20iLCJzdWIiOiJhMWIyYzNkNC4uLiIsImlhdCI6MTcxMDc3MjIwMCwiZXhwIjoxNzEwODU4NjAwLCJub25jZSI6ImFwcF9maW5fNDU2In0.signature",
+      "subject_hash": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+      "issued_at": "2026-03-18T14:30:00Z",
+      "expires_at": "2026-03-19T14:30:00Z"
+    }
+  ]
+}
+```
+</div>
+
+The provider validates the Checkr proof using the standard claim validation procedure ([[#identity-claim-validation]]) and confirms that Clear's provider-managed proof was already received via callback. If both are valid, the application transitions to `submitted`.
+
+# Security Considerations # {#verification-security-considerations}
+
+## Identity Verification Security ## {#security-verification}
+
+- [=Verification Proofs=] MUST be JWS-signed by the [=Identity Verifier=] using a key published at the verifier's `public_keys_url` (JWK Set per [[RFC7517]]). Providers MUST validate signatures using the full claim validation procedure defined in [[#identity-claim-validation]] before accepting proofs.
+- The JWS signing algorithm MUST be one of `ES256` (RECOMMENDED), `RS256`, `ES384`, or `RS384`. Providers MUST reject proofs signed with algorithms not declared in the verifier's `signing_algorithms`.
+- [=Verification Proofs=] MUST NOT contain PII. The `subject_hash` MUST be computed as `SHA-256(canonical_subject_identifier)` and MUST NOT be reversible to the candidate's identity.
+- Providers SHOULD reject proofs older than the verifier's declared `proof_ttl_seconds`.
+- Agents MUST NOT cache [=Verification Proofs=] beyond their `expires_at` timestamp.
+- Verification URLs MUST use HTTPS and SHOULD include a session parameter that binds the verification to the specific application.
+- [=Identity Verifiers=] MUST NOT share verification data with OJCP providers beyond the signed [=Verification Proof=].
+- Providers MUST validate the `aud` claim to prevent cross-provider proof replay.
+- Providers MUST validate that the `nonce` claim matches the expected `application_id` to prevent replay attacks.
+- Error responses and `warnings` arrays MUST NOT include candidate PII. Field names are acceptable; field values are not.
+- Session tokens MUST be cryptographically random with a minimum of 256 bits of entropy. Session tokens MUST have an expiration time (RECOMMENDED 30 minutes). Providers SHOULD bind session tokens to the originating verified `agent_id` and reject `submit_application` calls from a different verified agent than the one that called `begin_application`; an unverified `agent_id` MUST NOT be used for this binding ([OJCP: Verification](../#agent-verification)). The `application_id` MUST NOT be sequential or predictable — providers SHOULD use UUIDv4 or equivalent.

@@ -55,11 +55,11 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install --no-cache-dir bikeshed && bikeshed update
-      - run: bikeshed spec spec/ojcp-v0.1.bs spec/ojcp-v0.1.html
+      - run: scripts/build-spec.sh . _site
       - uses: actions/upload-artifact@v4
         with:
           name: spec-html
-          path: spec/ojcp-v0.1.html
+          path: _site
           retention-days: 30
 
   deploy-pages:
@@ -88,14 +88,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site
-          # Latest spec at the site root.
-          bikeshed spec spec/ojcp-v0.1.bs _site/index.html
+          # Latest spec (core and extensions) at the site root.
+          scripts/build-spec.sh . _site
           # Every release keeps a permanent URL, /<version>/, built from its tag.
           for tag in $(git tag --list 'v*' --sort=version:refname); do
             version="${tag#v}"
             git worktree add --detach "$RUNNER_TEMP/ojcp-$version" "$tag"
-            mkdir -p "_site/$version"
-            bikeshed spec "$RUNNER_TEMP/ojcp-$version/spec/ojcp-v0.1.bs" "_site/$version/index.html"
+            scripts/build-spec.sh "$RUNNER_TEMP/ojcp-$version" "_site/$version"
             git worktree remove --force "$RUNNER_TEMP/ojcp-$version"
           done
           # Bikeshed has no favicon setting: publish the OJCP icons and link

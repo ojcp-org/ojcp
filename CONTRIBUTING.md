@@ -18,7 +18,7 @@ Open a GitHub Issue for:
 All substantive changes to the spec follow an RFC process:
 
 1. **Fork** the repository and create a branch named `rfc/short-description`.
-2. **Write your proposal** as a modification to the spec in `spec/ojcp-v0.1.bs` or as a new document in `docs/rfcs/`.
+2. **Write your proposal** as a modification to the spec (core `spec/ojcp.bs`, or an extension: `spec/ojcp-trust.bs`, `spec/ojcp-mandates.bs`, `spec/ojcp-verification.bs`) or as a new document in `docs/rfcs/`.
 3. **Open a Pull Request** with:
    - A clear title prefixed with `RFC:` (e.g., `RFC: Add interview scheduling tool`)
    - A summary of the motivation and proposed change
@@ -88,7 +88,7 @@ If you become aware of a patent claim (yours, your employer's, or a third party'
 
 ## Recognition
 
-Contributors who make substantive contributions (spec review, design feedback, schema improvements, implementations) are acknowledged by name and affiliation in the [Acknowledgements section](spec/ojcp-v0.1.bs) of the specification. This is a permanent part of the published standard.
+Contributors who make substantive contributions (spec review, design feedback, schema improvements, implementations) are acknowledged by name and affiliation in the [Acknowledgements section](spec/ojcp.bs) of the specification. This is a permanent part of the published standard.
 
 If you'd like to be listed, include your preferred name and affiliation in your first PR.
 
